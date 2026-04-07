@@ -105,7 +105,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'run_task') {
-    runTask(msg.task, msg.taskId, msg.model);
+    runTask(msg.task, msg.taskId, msg.model, msg.images);
     sendResponse({ success: true });
   }
   else if (msg.type === 'stop_task') { shouldStop = true; sendResponse({ success: true }); }
@@ -170,7 +170,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       const tasks = data.scheduledTasks || [];
       const scheduled = tasks.find(t => t.alarmName === alarm.name);
       if (scheduled && !running) {
-        runTask(scheduled.task, Date.now(), null);
+        runTask(scheduled.task, Date.now(), null, null);
       }
     });
   }
@@ -301,7 +301,7 @@ async function hideTaskEffects(tabId) {
 
 // --- AGENT LOOP ---
 
-async function runTask(task, taskId, modelOverride) {
+async function runTask(task, taskId, modelOverride, images) {
   if (running) { broadcast({ type: 'error', text: 'A task is already running', taskId }); return; }
   running = true;
   shouldStop = false;
@@ -336,7 +336,15 @@ async function runTask(task, taskId, modelOverride) {
     running = false; return;
   }
 
-  const messages = [{ role: 'user', content: task }];
+  // Build first message — text + optional images
+  const userContent = [];
+  if (images && images.length > 0) {
+    for (const img of images) {
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } });
+    }
+  }
+  userContent.push({ type: 'text', text: task });
+  const messages = [{ role: 'user', content: userContent }];
   broadcast({ type: 'task_start', text: task, taskId, tabId: tab.id });
   await showTaskEffects(tab.id);
 

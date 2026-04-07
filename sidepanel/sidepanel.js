@@ -14,6 +14,60 @@ const tabLabel = document.getElementById('tabLabel');
 let taskIdCounter = 0;
 let currentTabId = null;
 let conversations = {}; // tabId → { html: '' }
+let pendingImages = []; // base64 images to send with next message
+
+// --- Image Handling ---
+const attachBtn = document.getElementById('attachBtn');
+const fileInput = document.getElementById('fileInput');
+const inputPreviews = document.getElementById('inputPreviews');
+
+attachBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  Array.from(fileInput.files).forEach(f => addImageFile(f));
+  fileInput.value = '';
+});
+
+// Paste images from clipboard
+document.addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      addImageFile(item.getAsFile());
+    }
+  }
+});
+
+function addImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    const mediaType = file.type;
+    pendingImages.push({ base64, mediaType });
+    renderPreviews();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderPreviews() {
+  inputPreviews.textContent = '';
+  pendingImages.forEach((img, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-preview';
+    const el = document.createElement('img');
+    el.src = 'data:' + img.mediaType + ';base64,' + img.base64;
+    const rm = document.createElement('button');
+    rm.className = 'img-preview-remove';
+    rm.textContent = '\u00D7';
+    rm.addEventListener('click', () => { pendingImages.splice(i, 1); renderPreviews(); });
+    wrap.appendChild(el);
+    wrap.appendChild(rm);
+    inputPreviews.appendChild(wrap);
+  });
+}
 
 // --- Init ---
 loadModel();
@@ -422,17 +476,21 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 function startTask() {
   const task = inputEl.value.trim();
-  if (!task) return;
+  if (!task && pendingImages.length === 0) return;
 
   taskIdCounter++;
+  const images = [...pendingImages];
+  pendingImages = [];
+  renderPreviews();
   inputEl.value = '';
   inputEl.style.height = 'auto';
 
   chrome.runtime.sendMessage({
     type: 'run_task',
-    task,
+    task: task || 'Analyze these images',
     taskId: taskIdCounter,
-    model: modelSelect.value
+    model: modelSelect.value,
+    images
   });
 }
 
