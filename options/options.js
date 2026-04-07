@@ -23,6 +23,11 @@ chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt
   if (!data.authToken) alertBanner.style.display = "flex";
 });
 
+// Hide banner as soon as user types a key
+authTokenInput.addEventListener('input', () => {
+  if (authTokenInput.value.trim()) alertBanner.style.display = "none";
+});
+
 function showStatus(msg, ok) {
   statusEl.textContent = msg;
   statusEl.className = "status " + (ok ? "ok" : "err");
@@ -70,6 +75,7 @@ testBtn.addEventListener("click", async () => {
 
     if (res.ok) {
       showStatus("Connection successful!", true);
+      alertBanner.style.display = "none";
     } else {
       const err = await res.text();
       showStatus(`Error ${res.status}: ${err.substring(0, 100)}`, false);
