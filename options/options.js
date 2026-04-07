@@ -134,6 +134,19 @@ function loadScheduledTasks() {
       meta.appendChild(badge);
       meta.appendChild(date);
 
+      const actions = document.createElement("div");
+      actions.className = "sched-item-actions";
+
+      const run = document.createElement("button");
+      run.className = "sched-item-run";
+      run.textContent = "Run now";
+      run.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ type: "run_task", task: t.task, taskId: Date.now(), model: null });
+        run.textContent = "Running...";
+        run.disabled = true;
+        setTimeout(() => { run.textContent = "Run now"; run.disabled = false; }, 3000);
+      });
+
       const del = document.createElement("button");
       del.className = "sched-item-delete";
       del.textContent = "Delete";
@@ -142,8 +155,10 @@ function loadScheduledTasks() {
         setTimeout(loadScheduledTasks, 200);
       });
 
+      actions.appendChild(run);
+      actions.appendChild(del);
       footer.appendChild(meta);
-      footer.appendChild(del);
+      footer.appendChild(actions);
       item.appendChild(taskText);
       item.appendChild(footer);
       schedListEl.appendChild(item);

@@ -171,6 +171,24 @@ function loadScheduledTasks() {
       created.textContent = 'Added ' + new Date(t.createdAt).toLocaleDateString();
       info.appendChild(created);
 
+      const actions = document.createElement('div');
+      actions.className = 'schedule-item-actions';
+
+      const run = document.createElement('button');
+      run.className = 'schedule-item-run';
+      run.title = 'Run now';
+      run.textContent = 'Run';
+      run.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'run_task', task: t.task, taskId: Date.now(), model: null });
+        run.textContent = '...';
+        run.disabled = true;
+        setTimeout(() => { run.textContent = 'Run'; run.disabled = false; }, 3000);
+        // Switch to chat view
+        scheduledPanel.classList.add('hidden');
+        messagesEl.classList.remove('hidden');
+        document.querySelector('.input-area').classList.remove('hidden');
+      });
+
       const del = document.createElement('button');
       del.className = 'schedule-item-delete';
       del.title = 'Delete';
@@ -180,8 +198,10 @@ function loadScheduledTasks() {
         setTimeout(loadScheduledTasks, 200);
       });
 
+      actions.appendChild(run);
+      actions.appendChild(del);
       meta.appendChild(info);
-      meta.appendChild(del);
+      meta.appendChild(actions);
       item.appendChild(taskText);
       item.appendChild(meta);
       scheduleList.appendChild(item);

@@ -824,6 +824,27 @@ textarea:disabled { opacity: 0.4; }
   font-size: 10px;
 }
 
+.schedule-item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.schedule-item-run {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.schedule-item-run:hover { background: var(--accent); color: #fff; }
+.schedule-item-run:disabled { opacity: 0.5; cursor: wait; }
+
 .schedule-item-delete {
   background: none;
   border: none;
