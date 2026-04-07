@@ -80,6 +80,7 @@ let recordFrames = [];
 let recordInterval = null;
 let userResponse = null;
 let userResponseResolve = null;
+let taskTabGroupId = null;
 
 // --- CONTEXT MENU ---
 chrome.runtime.onInstalled.addListener(() => {
@@ -232,6 +233,70 @@ async function cdp(tabId, method, params = {}) {
   return chrome.debugger.sendCommand({ tabId }, method, params);
 }
 
+// --- VISUAL EFFECTS ---
+
+async function showTaskEffects(tabId) {
+  // 1. Badge on extension icon
+  chrome.action.setBadgeText({ text: 'AI' });
+  chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
+
+  // 2. Tab group
+  try {
+    const groupId = await chrome.tabs.group({ tabIds: [tabId] });
+    await chrome.tabGroups.update(groupId, { title: 'Z AI', color: 'purple', collapsed: false });
+    taskTabGroupId = groupId;
+  } catch {}
+
+  // 3. Page overlay glow border + floating indicator (safe DOM construction, no innerHTML)
+  try {
+    await cdp(tabId, 'Runtime.evaluate', {
+      expression: `(() => {
+        if (document.getElementById('z-ai-overlay')) return;
+        var s = document.createElement('style');
+        s.id = 'z-ai-style';
+        s.textContent = '#z-ai-border{position:fixed;inset:0;pointer-events:none;z-index:2147483646;border:2px solid rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08),0 0 15px rgba(99,102,241,0.1);animation:z-ai-pulse 3s ease-in-out infinite}@keyframes z-ai-pulse{0%,100%{border-color:rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08)}50%{border-color:rgba(99,102,241,0.25);box-shadow:inset 0 0 15px rgba(99,102,241,0.04)}}#z-ai-pill{position:fixed;top:10px;right:10px;z-index:2147483647;background:rgba(10,10,15,0.9);color:#c0c1ff;font:500 11px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:5px 12px 5px 8px;border-radius:20px;display:flex;align-items:center;gap:6px;border:1px solid rgba(99,102,241,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none}#z-ai-dot{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:z-ai-dot-pulse 1.5s ease-in-out infinite}@keyframes z-ai-dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}';
+        document.head.appendChild(s);
+        var wrap = document.createElement('div');
+        wrap.id = 'z-ai-overlay';
+        var border = document.createElement('div');
+        border.id = 'z-ai-border';
+        wrap.appendChild(border);
+        var pill = document.createElement('div');
+        pill.id = 'z-ai-pill';
+        var dot = document.createElement('span');
+        dot.id = 'z-ai-dot';
+        pill.appendChild(dot);
+        pill.appendChild(document.createTextNode('Z AI running...'));
+        wrap.appendChild(pill);
+        document.body.appendChild(wrap);
+      })()`
+    });
+  } catch {}
+}
+
+async function hideTaskEffects(tabId) {
+  // 1. Clear badge
+  chrome.action.setBadgeText({ text: '' });
+
+  // 2. Ungroup tab
+  if (taskTabGroupId !== null) {
+    try { await chrome.tabs.ungroup([tabId]); } catch {}
+    taskTabGroupId = null;
+  }
+
+  // 3. Remove page overlay
+  try {
+    await cdp(tabId, 'Runtime.evaluate', {
+      expression: `(() => {
+        var o = document.getElementById('z-ai-overlay');
+        var s = document.getElementById('z-ai-style');
+        if (o) o.remove();
+        if (s) s.remove();
+      })()`
+    });
+  } catch {}
+}
+
 // --- AGENT LOOP ---
 
 async function runTask(task, taskId, modelOverride) {
@@ -265,12 +330,13 @@ async function runTask(task, taskId, modelOverride) {
 
   try { await attachDebugger(tab.id); }
   catch (e) {
-    broadcast({ type: 'error', text: `No se pudo attach debugger: ${e.message}`, taskId });
+    broadcast({ type: 'error', text: `Could not attach debugger: ${e.message}`, taskId });
     running = false; return;
   }
 
   const messages = [{ role: 'user', content: task }];
   broadcast({ type: 'task_start', text: task, taskId, tabId: tab.id });
+  await showTaskEffects(tab.id);
 
   for (let i = 0; i < 40 && !shouldStop; i++) {
     broadcast({ type: 'thinking', taskId });
@@ -330,6 +396,7 @@ async function runTask(task, taskId, modelOverride) {
   // Stop recording if active
   if (recording) { recording = false; clearInterval(recordInterval); recordFrames = []; }
 
+  await hideTaskEffects(tab.id);
   await detachDebugger();
   broadcast({ type: 'task_end', taskId });
   running = false;

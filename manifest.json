@@ -16,7 +16,8 @@
     "downloads",
     "cookies",
     "notifications",
-    "alarms"
+    "alarms",
+    "tabGroups"
   ],
   "host_permissions": [
     "<all_urls>"
