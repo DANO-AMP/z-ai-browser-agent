@@ -87,3 +87,120 @@ testBtn.addEventListener("click", async () => {
   testBtn.disabled = false;
   testBtn.textContent = "Test connection";
 });
+
+// --- SCHEDULED TASKS ---
+
+const schedTaskInput = document.getElementById("schedTaskInput");
+const schedIntervalSelect = document.getElementById("schedIntervalSelect");
+const addSchedBtn = document.getElementById("addSchedBtn");
+const schedListEl = document.getElementById("schedListOptions");
+const improveBtn = document.getElementById("improvePromptBtn");
+
+function formatInterval(min) {
+  if (min < 60) return min + " min";
+  if (min < 1440) return (min / 60) + " hr";
+  return (min / 1440) + " day";
+}
+
+function loadScheduledTasks() {
+  chrome.runtime.sendMessage({ type: "get_scheduled" }, (res) => {
+    const tasks = res?.tasks || [];
+    schedListEl.textContent = "";
+    if (tasks.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "sched-empty";
+      empty.textContent = "No scheduled tasks";
+      schedListEl.appendChild(empty);
+      return;
+    }
+    tasks.forEach((t, i) => {
+      const item = document.createElement("div");
+      item.className = "sched-item";
+
+      const taskText = document.createElement("div");
+      taskText.className = "sched-item-task";
+      taskText.textContent = t.task;
+
+      const footer = document.createElement("div");
+      footer.className = "sched-item-footer";
+
+      const meta = document.createElement("div");
+      meta.className = "sched-item-meta";
+      const badge = document.createElement("span");
+      badge.className = "sched-badge";
+      badge.textContent = formatInterval(t.intervalMinutes);
+      const date = document.createElement("span");
+      date.textContent = new Date(t.createdAt).toLocaleDateString();
+      meta.appendChild(badge);
+      meta.appendChild(date);
+
+      const del = document.createElement("button");
+      del.className = "sched-item-delete";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ type: "remove_scheduled", index: i });
+        setTimeout(loadScheduledTasks, 200);
+      });
+
+      footer.appendChild(meta);
+      footer.appendChild(del);
+      item.appendChild(taskText);
+      item.appendChild(footer);
+      schedListEl.appendChild(item);
+    });
+  });
+}
+
+addSchedBtn.addEventListener("click", () => {
+  const task = schedTaskInput.value.trim();
+  if (!task) return;
+  const minutes = parseInt(schedIntervalSelect.value);
+  chrome.runtime.sendMessage({ type: "schedule_task", task, cronMinutes: minutes });
+  schedTaskInput.value = "";
+  setTimeout(loadScheduledTasks, 300);
+});
+
+// --- IMPROVE PROMPT (AI-powered) ---
+
+improveBtn.addEventListener("click", async () => {
+  const text = schedTaskInput.value.trim();
+  if (!text) return;
+  const authToken = authTokenInput.value.trim();
+  const endpoint = apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint;
+  const model = modelNameSelect.value;
+  if (!authToken) { showStatus("Add your API key first", false); return; }
+
+  improveBtn.disabled = true;
+  improveBtn.textContent = "Improving...";
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": authToken,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 300,
+        messages: [{ role: "user", content: `Improve this browser automation task prompt. Fix spelling, grammar, make it clearer and more precise for an AI agent. Return ONLY the improved prompt, nothing else:\n\n${text}` }]
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const improved = data.content?.find(b => b.type === "text")?.text || text;
+      schedTaskInput.value = improved.trim();
+    } else {
+      showStatus("Could not improve prompt", false);
+    }
+  } catch (e) {
+    showStatus("Error: " + e.message, false);
+  }
+
+  improveBtn.disabled = false;
+  improveBtn.textContent = "Improve";
+});
+
+// Load tasks on page open
+loadScheduledTasks();

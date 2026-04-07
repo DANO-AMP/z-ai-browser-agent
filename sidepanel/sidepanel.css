@@ -740,6 +740,37 @@ textarea:disabled { opacity: 0.4; }
   gap: 6px;
 }
 
+/* Improve prompt button */
+.textarea-with-action {
+  position: relative;
+}
+
+.textarea-with-action textarea {
+  padding-right: 80px;
+}
+
+.btn-improve {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.btn-improve:hover { background: var(--accent); color: #fff; }
+.btn-improve:disabled { opacity: 0.5; cursor: wait; }
+
 .schedule-empty {
   text-align: center;
   color: var(--text-muted);

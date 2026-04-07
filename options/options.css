@@ -322,3 +322,141 @@ details[open] .card-header-toggle {
 
 .status.ok { color: var(--success); }
 .status.err { color: var(--error); }
+
+/* === SCHEDULED TASKS === */
+.schedule-form-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-add-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.btn-add-sched {
+  padding: 8px 16px;
+  white-space: nowrap;
+  margin-bottom: 0;
+  height: 36px;
+}
+
+.sched-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0;
+}
+
+.sched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sched-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 16px 0;
+}
+
+.sched-item {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sched-item-task {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.sched-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sched-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sched-badge {
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+
+.sched-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sched-item-delete:hover {
+  color: var(--error);
+  background: var(--error-dim);
+}
+
+/* Improve prompt button */
+.textarea-with-action {
+  position: relative;
+}
+
+.textarea-with-action textarea {
+  padding-right: 90px;
+}
+
+.btn-improve {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.2px;
+}
+
+.btn-improve:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-improve:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}

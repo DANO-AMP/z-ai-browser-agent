@@ -189,6 +189,40 @@ function loadScheduledTasks() {
   });
 }
 
+// --- Improve Prompt (AI-powered) ---
+const improvePromptSidepanel = document.getElementById('improvePromptSidepanel');
+
+improvePromptSidepanel.addEventListener('click', async () => {
+  const text = scheduleTaskInput.value.trim();
+  if (!text) return;
+
+  improvePromptSidepanel.disabled = true;
+  improvePromptSidepanel.textContent = '...';
+
+  try {
+    const config = await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName']);
+    if (!config.authToken) { improvePromptSidepanel.disabled = false; improvePromptSidepanel.textContent = 'Improve'; return; }
+    const endpoint = config.apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': config.authToken, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: config.modelName || 'glm-5.1',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: 'Improve this browser automation task prompt. Fix spelling, grammar, make it clearer and more precise for an AI agent. Return ONLY the improved prompt, nothing else:\n\n' + text }]
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const improved = data.content?.find(b => b.type === 'text')?.text || text;
+      scheduleTaskInput.value = improved.trim();
+    }
+  } catch {}
+
+  improvePromptSidepanel.disabled = false;
+  improvePromptSidepanel.textContent = 'Improve';
+});
+
 function formatInterval(min) {
   if (min < 60) return min + ' min';
   if (min < 1440) return (min / 60) + ' hr';
