@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;family=Inter:wght@300..700&amp;family=Geist+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'z-bg-base': '#0a0a0f',
+                        'z-bg-surface': '#111118',
+                        'z-bg-card': '#1a1a24',
+                        'z-bg-tertiary': '#22222e',
+                        'z-accent': '#6366f1',
+                        'z-accent-hover': '#818cf8',
+                        'z-text-primary': '#f0f0f5',
+                        'z-text-secondary': '#a0a0b0',
+                        'z-text-muted': '#606070',
+                        'z-border': 'rgba(255,255,255,0.08)',
+                        'z-border-heavy': 'rgba(255,255,255,0.12)',
+                        'z-success': '#22c55e',
+                        'z-error': '#ef4444',
+                        'z-warning': '#f59e0b'
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["Geist Mono", "monospace"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 18px;
+        }
+        .pulse-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .5; transform: scale(0.8); }
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .glass-gradient {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-z-bg-base text-z-text-primary font-body antialiased flex flex-col h-screen max-w-[400px] mx-auto border-x border-z-border overflow-hidden">
+<!-- TopAppBar (Shared Component Logic) -->
+<header class="bg-[#0a0a0f] border-b border-white/10 flex items-center justify-between px-3 h-12 w-full max-w-[400px] shrink-0 z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#6366f1]" data-icon="smart_toy">smart_toy</span>
+<span class="text-lg font-bold text-[#f0f0f5] tracking-tight font-headline">Z AI Agent</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="font-['Space_Grotesk'] text-[13px] tracking-tight text-[#6366f1] px-2 py-0.5 rounded bg-white/5 border border-white/10">GLM-5.1</span>
+<button class="p-1.5 rounded hover:bg-white/5 transition-colors text-[#a0a0b0] active:scale-95 duration-200">
+<span class="material-symbols-outlined">add</span>
+</button>
+<button class="p-1.5 rounded hover:bg-white/5 transition-colors text-[#a0a0b0] active:scale-95 duration-200">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- Sub-header / Status Indicator -->
+<div class="px-4 py-2 bg-z-bg-base flex items-center justify-between border-b border-z-border">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-z-accent pulse-dot"></div>
+<span class="text-[11px] font-label uppercase tracking-widest text-z-text-secondary">Running...</span>
+</div>
+<div class="flex items-center gap-1.5 bg-z-bg-tertiary px-2 py-1 rounded-full border border-z-border">
+<span class="material-symbols-outlined text-[14px] text-z-text-muted">captive_portal</span>
+<span class="text-[10px] text-z-text-secondary truncate max-w-[150px]">github.com — Pull requests</span>
+</div>
+</div>
+<!-- Message Stream -->
+<main class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+<!-- Task Message -->
+<div class="animate-in fade-in slide-in-from-bottom-2 duration-500">
+<div class="bg-z-accent/5 border border-z-accent/20 rounded-xl p-4 glass-gradient shadow-sm">
+<div class="flex items-center gap-2 mb-2">
+<span class="text-[10px] font-bold tracking-widest text-z-accent uppercase">Task</span>
+</div>
+<p class="text-[13px] text-z-text-primary leading-relaxed font-medium">
+                    Find the latest open pull request and summarize it
+                </p>
+</div>
+</div>
+<!-- Tool Call Sequence 1 -->
+<div class="space-y-3">
+<!-- Tool Call -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-z-bg-surface border border-z-border rounded-lg py-1.5 px-3 shadow-sm">
+<span class="material-symbols-outlined text-z-accent text-sm" data-icon="link">link</span>
+<span class="font-mono text-[11px] text-z-accent font-semibold">navigate</span>
+<span class="font-mono text-[11px] text-z-text-muted">url="https://github.com/pulls"</span>
+</div>
+</div>
+<!-- Tool Result -->
+<div class="ml-4 pl-3 border-l border-z-success/30 py-1">
+<p class="font-mono text-[11px] text-z-text-secondary leading-tight italic">
+                    Navigated to https://github.com/pulls
+                </p>
+</div>
+</div>
+<!-- Tool Call Sequence 2 -->
+<div class="space-y-3">
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-z-bg-surface border border-z-border rounded-lg py-1.5 px-3 shadow-sm">
+<span class="material-symbols-outlined text-z-accent text-sm" data-icon="screenshot">screenshot</span>
+<span class="font-mono text-[11px] text-z-accent font-semibold">screenshot</span>
+</div>
+</div>
+<div class="ml-4 pl-3 border-l border-z-success/30 py-1">
+<p class="font-mono text-[11px] text-z-text-secondary leading-tight italic">
+                    Screenshot captured.
+                </p>
+</div>
+</div>
+<!-- Tool Call Sequence 3 (JSON Result) -->
+<div class="space-y-3">
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-z-bg-surface border border-z-border rounded-lg py-1.5 px-3 shadow-sm">
+<span class="material-symbols-outlined text-z-accent text-sm" data-icon="search">search</span>
+<span class="font-mono text-[11px] text-z-accent font-semibold">find</span>
+<span class="font-mono text-[11px] text-z-text-muted">selector=".issue-link"</span>
+</div>
+</div>
+<div class="ml-4 pl-3 border-l border-z-success/30 py-1">
+<div class="bg-z-bg-tertiary/50 border border-z-border rounded-lg p-2 max-h-32 overflow-y-auto">
+<pre class="font-mono text-[10px] text-z-text-muted leading-tight">{
+  "elements": [
+    {
+      "id": "pr_1024",
+      "text": "fix: update tailwind config",
+      "href": "/repo/pull/1024",
+      "status": "open"
+    },
+    {
+      "id": "pr_1023",
+      "text": "feat: add accessibility linter",
+      "href": "/repo/pull/1023",
+      "status": "closed"
+    }
+  ]
+}</pre>
+</div>
+</div>
+</div>
+<!-- Thinking Indicator -->
+<div class="flex items-center gap-3 pt-2">
+<div class="w-1.5 h-1.5 rounded-full bg-z-accent pulse-dot"></div>
+<span class="text-[12px] italic text-z-text-muted">Thinking...</span>
+</div>
+</main>
+<!-- Fixed Bottom Input Area -->
+<footer class="bg-z-bg-base p-4 pt-2 pb-6 border-t border-z-border">
+<div class="relative group">
+<div class="absolute inset-0 bg-z-accent/5 blur-xl rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+<div class="relative bg-z-bg-tertiary border border-z-border rounded-xl p-3 opacity-60 cursor-not-allowed">
+<div class="flex items-start gap-3">
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-[13px] text-z-text-muted resize-none h-12 cursor-not-allowed" disabled="" placeholder="Agent is working..."></textarea>
+<button class="bg-z-error hover:bg-z-error/90 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-z-error/20 shrink-0">
+<span class="material-symbols-outlined fill-current" data-icon="stop" style="font-variation-settings: 'FILL' 1;">stop</span>
+</button>
+</div>
+<div class="flex items-center justify-between mt-2 px-1">
+<div class="flex items-center gap-3 opacity-40">
+<span class="material-symbols-outlined text-z-text-muted text-[18px]">attach_file</span>
+<span class="material-symbols-outlined text-z-text-muted text-[18px]">language</span>
+<span class="material-symbols-outlined text-z-text-muted text-[18px]">terminal</span>
+</div>
+<span class="text-[10px] text-z-text-muted font-mono tracking-tighter">TASK IN PROGRESS</span>
+</div>
+</div>
+</div>
+</footer>
+<!-- BottomNavBar (Suppressed based on "Task-Focused" rule, but structure maintained for shell consistency if needed) -->
+<!-- Rule check: Task-focused sub-page should prioritize content. Hidden. -->
+</body></html>

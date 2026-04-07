@@ -11,12 +11,16 @@ const DEFAULTS = {
   modelName: "glm-5.1"
 };
 
+const alertBanner = document.getElementById("alertBanner");
+
 // Load saved settings
 chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt"], (data) => {
   authTokenInput.value = data.authToken || "";
   apiEndpointInput.value = data.apiEndpoint || DEFAULTS.apiEndpoint;
   modelNameSelect.value = data.modelName || DEFAULTS.modelName;
   systemPromptInput.value = data.systemPrompt || "";
+  // Show warning if no API key
+  if (!data.authToken) alertBanner.style.display = "flex";
 });
 
 function showStatus(msg, ok) {
@@ -32,7 +36,8 @@ saveBtn.addEventListener("click", () => {
     modelName: modelNameSelect.value,
     systemPrompt: systemPromptInput.value.trim()
   });
-  showStatus("Guardado!", true);
+  showStatus("Saved!", true);
+  if (authTokenInput.value.trim()) alertBanner.style.display = "none";
 });
 
 testBtn.addEventListener("click", async () => {
@@ -41,12 +46,12 @@ testBtn.addEventListener("click", async () => {
   const model = modelNameSelect.value;
 
   if (!authToken) {
-    showStatus("Ingresa tu Auth Token", false);
+    showStatus("Enter your Z.AI API Key", false);
     return;
   }
 
   testBtn.disabled = true;
-  testBtn.textContent = "Probando...";
+  testBtn.textContent = "Testing...";
 
   try {
     const res = await fetch(endpoint, {
@@ -59,20 +64,20 @@ testBtn.addEventListener("click", async () => {
       body: JSON.stringify({
         model,
         max_tokens: 20,
-        messages: [{ role: "user", content: "Responde solo: OK" }]
+        messages: [{ role: "user", content: "Reply only: OK" }]
       })
     });
 
     if (res.ok) {
-      showStatus("Conexion exitosa!", true);
+      showStatus("Connection successful!", true);
     } else {
       const err = await res.text();
       showStatus(`Error ${res.status}: ${err.substring(0, 100)}`, false);
     }
   } catch (e) {
-    showStatus("Error de red: " + e.message, false);
+    showStatus("Network error: " + e.message, false);
   }
 
   testBtn.disabled = false;
-  testBtn.textContent = "Probar conexion";
+  testBtn.textContent = "Test connection";
 });

@@ -30,7 +30,7 @@ async function updateTabInfo() {
         saveConversation(currentTabId);
       }
       currentTabId = newTabId;
-      const title = tab.title ? tab.title.substring(0, 50) : 'Sin titulo';
+      const title = tab.title ? tab.title.substring(0, 50) : 'Untitled';
       const url = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch { return ''; } })() : '';
       tabLabel.textContent = `${title} - ${url}`;
       loadConversation(newTabId);
@@ -58,20 +58,22 @@ function loadConversation(tabId) {
 }
 
 function showWelcome() {
-  messagesEl.innerHTML = `
-    <div class="welcome">
-      <div class="welcome-icon">&#129302;</div>
-      <h2>Z AI Browser Agent</h2>
-      <p>Dame una tarea y tomare control del navegador para completarla.</p>
-      <div class="examples">
-        <button class="example-btn" data-task="Abre google.com y busca 'noticias de hoy'">Buscar en Google</button>
-        <button class="example-btn" data-task="Ve a wikipedia.org y extrae el titulo del articulo destacado">Extraer datos</button>
-        <button class="example-btn" data-task="Toma una captura de pantalla y dime que ves">Analizar pagina</button>
-        <button class="example-btn" data-task="Busca en mi historial la ultima pagina de YouTube que visite">Buscar historial</button>
-        <button class="example-btn" data-task="Lista todas las pestañas abiertas">Listar pestañas</button>
-        <button class="example-btn" data-task="Lee los errores de la consola de esta pagina y ayudame a corregirlos">Depurar pagina</button>
-      </div>
-    </div>`;
+  // Static hardcoded welcome — no user input, safe for innerHTML
+  const chev = '<svg class="example-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+  const icon = (d) => '<span class="example-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + d + '</svg></span>';
+  const btn = (task, ico, label) => '<button class="example-btn" data-task="' + task + '">' + ico + '<span>' + label + '</span>' + chev + '</button>';
+  const welcomeHTML = '<div class="welcome">'
+    + '<div class="welcome-logo"><span class="welcome-letter">Z</span><div class="welcome-glow"></div></div>'
+    + '<h2>What would you like me to do?</h2>'
+    + '<p>Navigate, click, type, extract data, debug pages and more.</p>'
+    + '<div class="examples">'
+    + btn("Abre google.com y busca 'noticias de hoy'", icon('<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>'), 'Search on Google')
+    + btn('Toma una captura de pantalla y dime que ves', icon('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'), 'Analyze current page')
+    + btn('Busca en mi historial la ultima pagina de YouTube que visite', icon('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'), 'Search browser history')
+    + btn('Lee los errores de la consola de esta pagina y ayudame a corregirlos', icon('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>'), 'Debug page errors')
+    + btn('Lista todas las pestanas abiertas y dime el titulo de cada una', icon('<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 7h20M9 3v4"/>'), 'List all open tabs')
+    + '</div></div>';
+  messagesEl.innerHTML = welcomeHTML; // safe: static content only
   rebindExampleBtns();
 }
 
@@ -81,7 +83,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   currentTabId = activeInfo.tabId;
   chrome.tabs.get(activeInfo.tabId, (tab) => {
     if (chrome.runtime.lastError) return;
-    const title = tab.title ? tab.title.substring(0, 50) : 'Sin titulo';
+    const title = tab.title ? tab.title.substring(0, 50) : 'Untitled';
     const url = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch { return ''; } })() : '';
     tabLabel.textContent = `${title} - ${url}`;
     loadConversation(tab.id);
@@ -140,14 +142,14 @@ chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
     case 'task_start':
       removeWelcome();
-      addMsg('task', `<div class="label">Tarea</div>${escapeHtml(msg.text)}`);
-      setStatus('running', 'Ejecutando...');
+      addMsg('task', `<div class="label">Task</div>${escapeHtml(msg.text)}`);
+      setStatus('running', 'Running...');
       toggleButtons(true);
       break;
 
     case 'thinking':
       removeThinking();
-      addMsg('thinking', 'Pensando...');
+      addMsg('thinking', 'Thinking...');
       break;
 
     case 'tool_call':
@@ -172,7 +174,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         .join(' ');
       addMsg('tool-call',
         `<span class="tool-icon">${icon}</span>
-         <div><span class="tool-name">${msg.tool}</span>
+         <div><span class="tool-name">${escapeHtml(msg.tool)}</span>
          <div class="tool-params">${escapeHtml(params)}</div></div>`
       );
       break;
@@ -188,7 +190,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
     case 'final_response':
       removeThinking();
-      addMsg('response', `<div class="label">Resultado</div>${renderMarkdown(msg.text)}`);
+      addMsg('response', `<div class="label">Result</div>${renderMarkdown(msg.text)}`);
       break;
 
     case 'error':
@@ -199,8 +201,8 @@ chrome.runtime.onMessage.addListener((msg) => {
       break;
 
     case 'task_end':
-      addMsg('task-end', `--- Tarea completada ---`);
-      setStatus('', 'Listo');
+      addMsg('task-end', `Task completed`);
+      setStatus('', 'Ready');
       toggleButtons(false);
       break;
 
@@ -213,11 +215,11 @@ chrome.runtime.onMessage.addListener((msg) => {
     case 'ask_user':
       removeThinking();
       addMsg('ask-user',
-        `<div class="label">&#128100; El agente pregunta</div>
+        `<div class="label">&#128100; Agent asks</div>
          <p>${escapeHtml(msg.question)}</p>
          <div class="ask-user-input">
-           <input type="text" id="askUserInput" placeholder="Tu respuesta..." />
-           <button id="askUserBtn">Enviar</button>
+           <input type="text" id="askUserInput" placeholder="Your response..." />
+           <button id="askUserBtn">Send</button>
          </div>`
       );
       const askInput = document.getElementById('askUserInput');
@@ -269,8 +271,8 @@ function startTask() {
 
 function stopTask() {
   chrome.runtime.sendMessage({ type: 'stop_task' });
-  addMsg('task-end', '--- Tarea detenida por el usuario ---');
-  setStatus('', 'Detenido');
+  addMsg('task-end', 'Stopped by user');
+  setStatus('', 'Stopped');
   toggleButtons(false);
 }
 

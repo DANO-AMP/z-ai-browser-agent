@@ -21,6 +21,9 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; style-src 'self'; img-src 'self' data:; connect-src https://api.z.ai https://*.z.ai"
+  },
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"
   },

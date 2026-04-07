@@ -85,13 +85,13 @@ let userResponseResolve = null;
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'z-ai-task',
-    title: 'Ejecutar con Z AI',
+    title: 'Run with Z AI',
     contexts: ['selection', 'link', 'page']
   });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  const task = info.selectionText || `Analiza esta pagina: ${tab?.url || 'current'}`;
+  const task = info.selectionText || `Analyze this page: ${tab?.url || 'current'}`;
   chrome.sidePanel.open({ tabId: tab.id });
   setTimeout(() => {
     broadcast({ type: 'incoming_task', text: task, tabId: tab.id });
@@ -235,18 +235,18 @@ async function cdp(tabId, method, params = {}) {
 // --- AGENT LOOP ---
 
 async function runTask(task, taskId, modelOverride) {
-  if (running) { broadcast({ type: 'error', text: 'Ya hay una tarea en ejecucion', taskId }); return; }
+  if (running) { broadcast({ type: 'error', text: 'A task is already running', taskId }); return; }
   running = true;
   shouldStop = false;
   consoleLogs = [];
 
-  const { authToken, modelName, systemPrompt } = await getConfig();
-  const endpoint = 'https://api.z.ai/api/anthropic/v1/messages';
+  const { authToken, apiEndpoint, modelName, systemPrompt } = await getConfig();
+  const endpoint = apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
   const model = modelOverride || modelName || 'glm-5.1';
   const sysPrompt = systemPrompt || SYSTEM_PROMPT;
 
   if (!authToken) {
-    broadcast({ type: 'error', text: 'Token no configurado. Ve a Opciones.', taskId });
+    broadcast({ type: 'error', text: 'Z.AI API Key not configured. Go to Settings.', taskId });
     running = false; return;
   }
 
@@ -343,6 +343,7 @@ async function executeTool(tabId, tool, params) {
     switch (tool) {
       // === Navigation & Page ===
       case 'navigate': {
+        if (!isUrlSafe(params.url)) return { text: `Blocked navigation to unsafe URL: ${params.url}` };
         await cdp(tabId, 'Page.navigate', { url: params.url });
         await new Promise(resolve => {
           const timeout = setTimeout(resolve, 8000);
@@ -377,7 +378,7 @@ async function executeTool(tabId, tool, params) {
 
       case 'get_page': {
         const expr = params.selector
-          ? `document.querySelector('${cssEscape(params.selector)}')?.innerText?.substring(0,8000) || 'Element not found'`
+          ? `document.querySelector(${jsStr(params.selector)})?.innerText?.substring(0,8000) || 'Element not found'`
           : `document.body.innerText.substring(0, 12000)`;
         const { result } = await cdp(tabId, 'Runtime.evaluate', { expression: expr, returnByValue: true });
         return { text: result?.value || 'Empty page' };
@@ -385,7 +386,7 @@ async function executeTool(tabId, tool, params) {
 
       case 'get_html': {
         const expr = params.selector
-          ? `document.querySelector('${cssEscape(params.selector)}')?.outerHTML?.substring(0,10000) || 'Element not found'`
+          ? `document.querySelector(${jsStr(params.selector)})?.outerHTML?.substring(0,10000) || 'Element not found'`
           : `document.body.innerHTML.substring(0, 15000)`;
         const { result } = await cdp(tabId, 'Runtime.evaluate', { expression: expr, returnByValue: true });
         return { text: result?.value || 'Empty' };
@@ -403,7 +404,7 @@ async function executeTool(tabId, tool, params) {
 
       case 'find': {
         const { result } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `JSON.stringify(Array.from(document.querySelectorAll('${cssEscape(params.selector)}')).slice(0,15).map((e,i) => ({
+          expression: `JSON.stringify(Array.from(document.querySelectorAll(${jsStr(params.selector)})).slice(0,15).map((e,i) => ({
             i, tag: e.tagName.toLowerCase(),
             text: (e.textContent||'').substring(0,60).trim(),
             id: e.id||null, href: e.href||null, type: e.type||null,
@@ -427,13 +428,13 @@ async function executeTool(tabId, tool, params) {
       // === Interaction ===
       case 'click': {
         const { result } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const el = document.querySelector('${cssEscape(params.selector)}');
+          expression: `((sel) => {
+            const el = document.querySelector(sel);
             if (!el) return null;
-            const r = el.getBoundingClientRect();
             el.scrollIntoView({behavior:'instant', block:'center'});
+            const r = el.getBoundingClientRect();
             return {x: r.x + r.width/2, y: r.y + r.height/2, w: r.width, h: r.height};
-          })()`,
+          })(${jsStr(params.selector)})`,
           returnByValue: true
         });
         if (!result || !result.value) return { text: `Element not found: ${params.selector}` };
@@ -446,14 +447,14 @@ async function executeTool(tabId, tool, params) {
 
       case 'type_text': {
         const { result: focusResult } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const el = document.querySelector('${cssEscape(params.selector)}');
+          expression: `((sel, txt) => {
+            const el = document.querySelector(sel);
             if (!el) return null;
             el.focus();
-            if (el.value !== undefined) el.value = '';
+            if (el.value !== undefined) { el.value = ''; el.dispatchEvent(new Event('input', {bubbles:true})); }
             const r = el.getBoundingClientRect();
             return {x: r.x + r.width/2, y: r.y + r.height/2};
-          })()`,
+          })(${jsStr(params.selector)})`,
           returnByValue: true
         });
         if (!focusResult || !focusResult.value) return { text: `Element not found: ${params.selector}` };
@@ -486,13 +487,13 @@ async function executeTool(tabId, tool, params) {
 
       case 'hover': {
         const { result } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const el = document.querySelector('${cssEscape(params.selector)}');
+          expression: `((sel) => {
+            const el = document.querySelector(sel);
             if (!el) return null;
-            const r = el.getBoundingClientRect();
             el.scrollIntoView({behavior:'instant', block:'center'});
+            const r = el.getBoundingClientRect();
             return {x: r.x + r.width/2, y: r.y + r.height/2};
-          })()`,
+          })(${jsStr(params.selector)})`,
           returnByValue: true
         });
         if (!result || !result.value) return { text: `Element not found: ${params.selector}` };
@@ -503,16 +504,16 @@ async function executeTool(tabId, tool, params) {
 
       case 'select_option': {
         const { result } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const sel = document.querySelector('${cssEscape(params.selector)}');
+          expression: `((s, t) => {
+            const sel = document.querySelector(s);
             if (!sel) return 'Element not found';
             const opts = Array.from(sel.options);
-            const idx = opts.findIndex(o => o.text.includes('${cssEscape(params.text)}'));
-            if (idx === -1) return 'Option not found: ${cssEscape(params.text)}';
+            const idx = opts.findIndex(o => o.text.includes(t));
+            if (idx === -1) return 'Option not found: ' + t;
             sel.selectedIndex = idx;
             sel.dispatchEvent(new Event('change', {bubbles:true}));
             return 'Selected: ' + opts[idx].text;
-          })()`,
+          })(${jsStr(params.selector)}, ${jsStr(params.text)})`,
           returnByValue: true
         });
         return { text: result?.value || 'Error' };
@@ -528,22 +529,22 @@ async function executeTool(tabId, tool, params) {
       case 'drag': {
         // Get source position
         const { result: srcResult } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const el = document.querySelector('${cssEscape(params.from_selector)}');
+          expression: `((sel) => {
+            const el = document.querySelector(sel);
             if (!el) return null;
             const r = el.getBoundingClientRect();
             return {x: r.x + r.width/2, y: r.y + r.height/2};
-          })()`,
+          })(${jsStr(params.from_selector)})`,
           returnByValue: true
         });
         // Get target position
         const { result: tgtResult } = await cdp(tabId, 'Runtime.evaluate', {
-          expression: `(() => {
-            const el = document.querySelector('${cssEscape(params.to_selector)}');
+          expression: `((sel) => {
+            const el = document.querySelector(sel);
             if (!el) return null;
             const r = el.getBoundingClientRect();
             return {x: r.x + r.width/2, y: r.y + r.height/2};
-          })()`,
+          })(${jsStr(params.to_selector)})`,
           returnByValue: true
         });
         if (!srcResult?.value) return { text: `Source not found: ${params.from_selector}` };
@@ -560,6 +561,9 @@ async function executeTool(tabId, tool, params) {
 
       // === Advanced ===
       case 'evaluate_js': {
+        const codePreview = params.code.length > 200 ? params.code.substring(0, 200) + '...' : params.code;
+        const approved = await confirmWithUser(`The agent wants to execute JavaScript on this page:\n\n${codePreview}\n\nAllow?`);
+        if (!approved) return { text: 'User denied JavaScript execution.' };
         const { result } = await cdp(tabId, 'Runtime.evaluate', {
           expression: params.code,
           returnByValue: true,
@@ -661,9 +665,17 @@ async function executeTool(tabId, tool, params) {
 
       // === Downloads ===
       case 'download': {
+        if (!isUrlSafe(params.url)) return { text: `Blocked download from unsafe URL: ${params.url}` };
+        let filename = params.filename;
+        if (filename) {
+          filename = filename.replace(/[/\\:*?"<>|]/g, '_').split('/').pop().split('\\').pop();
+          if (filename.startsWith('.')) filename = '_' + filename;
+        }
+        const approved = await confirmWithUser(`The agent wants to download:\n${params.url}${filename ? '\nAs: ' + filename : ''}\n\nAllow?`);
+        if (!approved) return { text: 'User denied download.' };
         const id = await chrome.downloads.download({
           url: params.url,
-          filename: params.filename || undefined
+          filename: filename || undefined
         });
         return { text: `Download started: ${params.url} (id: ${id})` };
       }
@@ -671,15 +683,14 @@ async function executeTool(tabId, tool, params) {
       // === Cookies ===
       case 'get_cookies': {
         const domain = params.domain;
-        if (domain) {
-          const cookies = await chrome.cookies.getAll({ domain });
-          const list = cookies.slice(0, 20).map(c => `${c.name}=${c.value}`).join('\n');
-          return { text: list || 'No cookies found' };
-        }
-        const { result } = await cdp(tabId, 'Runtime.evaluate', { expression: 'window.location.hostname', returnByValue: true });
-        const hostname = result?.value || '';
-        const cookies = await chrome.cookies.getAll({ domain: hostname });
-        const list = cookies.slice(0, 20).map(c => `${c.name}=${c.value}`).join('\n');
+        const cookieDomain = domain || (await cdp(tabId, 'Runtime.evaluate', { expression: 'window.location.hostname', returnByValue: true })).result?.value || '';
+        const approved = await confirmWithUser(`The agent wants to read cookies for: ${cookieDomain}\n\nAllow?`);
+        if (!approved) return { text: 'User denied cookie access.' };
+        const cookies = await chrome.cookies.getAll({ domain: cookieDomain });
+        const list = cookies.slice(0, 20).map(c => {
+          const isSensitive = /session|token|auth|sid|csrf|jwt/i.test(c.name);
+          return `${c.name}=${isSensitive ? '[REDACTED]' : c.value.substring(0, 50)}`;
+        }).join('\n');
         return { text: list || 'No cookies found' };
       }
 
@@ -739,6 +750,31 @@ async function getConfig() { return await chrome.storage.local.get(['authToken',
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => {}); }
 
-function cssEscape(selector) {
-  return selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+// Safe JS string encoding — prevents injection in Runtime.evaluate expressions
+function jsStr(value) {
+  return JSON.stringify(String(value));
+}
+
+// URL safety check — blocks dangerous protocols and internal IPs
+function isUrlSafe(url) {
+  try {
+    const parsed = new URL(url);
+    const blocked = ['javascript:', 'file:', 'chrome:', 'chrome-extension:', 'data:', 'blob:'];
+    if (blocked.includes(parsed.protocol)) return false;
+    const h = parsed.hostname;
+    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(h)) return false;
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return false;
+    return true;
+  } catch { return false; }
+}
+
+// User confirmation helper for sensitive operations
+async function confirmWithUser(question) {
+  broadcast({ type: 'ask_user', question, taskId: currentTaskTabId });
+  const response = await new Promise((resolve) => {
+    userResponseResolve = resolve;
+    setTimeout(() => resolve('no'), 60000);
+  });
+  const r = response.toLowerCase().trim();
+  return r.startsWith('s') || r.startsWith('y') || r === 'ok';
 }

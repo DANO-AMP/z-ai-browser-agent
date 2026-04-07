@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings | Z AI Agent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=Geist+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0a0a0f;
+            color: #f0f0f5;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1",
+                        accent: "#818cf8",
+                        background: "#0a0a0f",
+                        surface: "#111118",
+                        elevated: "#1a1a24",
+                        border: "rgba(255,255,255,0.06)",
+                        muted: "#606070",
+                        secondary: "#a0a0b0"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "12px",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Space Grotesk"],
+                        body: ["Inter"],
+                        mono: ["Geist Mono"]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body selection:bg-primary/30">
+<!-- TopNavBar from JSON -->
+<nav class="bg-[#0a0a0f] dark:bg-[#0a0a0f] border-white/5 border-b sticky top-0 z-50">
+<div class="flex justify-between items-center h-14 px-6 w-full max-w-[520px] mx-auto">
+<div class="flex items-center gap-2">
+<span class="text-lg font-bold tracking-tight text-[#f0f0f5] font-['Space_Grotesk']">Z AI Agent</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-[#a0a0b0] hover:bg-white/5 hover:text-[#818cf8] transition-colors p-1.5 rounded active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
+<button class="text-[#6366f1] font-semibold hover:bg-white/5 transition-colors p-1.5 rounded active:scale-95 duration-200">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+</div>
+</nav>
+<main class="w-full max-w-[520px] mx-auto pb-24">
+<!-- Top Alert Banner -->
+<div class="mt-4 mb-8 bg-[#f59e0b] px-4 py-3 rounded-lg flex items-start gap-3 shadow-lg shadow-warning/10">
+<span class="material-symbols-outlined text-[#0a0a0f] shrink-0 mt-0.5">warning</span>
+<p class="text-[#0a0a0f] text-[13px] font-medium leading-relaxed">
+                ⚠ API token not configured — tasks will fail until you add your token.
+            </p>
+</div>
+<!-- Page Header -->
+<div class="flex items-center gap-3 mb-8 px-2">
+<span class="material-symbols-outlined text-primary text-3xl">settings</span>
+<h1 class="font-headline text-3xl font-bold tracking-tight">Settings</h1>
+</div>
+<!-- Settings Grid -->
+<div class="space-y-6">
+<!-- API CONFIGURATION Card -->
+<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<header class="mb-5">
+<h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">API CONFIGURATION</h2>
+</header>
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Auth Token</label>
+<input class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-muted" placeholder="••••••••••••••••••••••••" type="password"/>
+<p class="text-[11px] text-muted leading-relaxed italic">
+                            Found in ~/.claude/settings.json under ANTHROPIC_AUTH_TOKEN
+                        </p>
+</div>
+<div class="space-y-2">
+<label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Endpoint</label>
+<input class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="https://api.anthropic.com/v1"/>
+</div>
+<div class="space-y-2">
+<label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Model</label>
+<div class="relative">
+<select class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none appearance-none transition-all">
+<option>GLM-5.1 Recommended</option>
+<option>GLM-5-Turbo</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- AGENT Card -->
+<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<header class="mb-5">
+<h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">AGENT</h2>
+</header>
+<div class="space-y-2">
+<label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">System Prompt</label>
+<textarea class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] font-mono focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all resize-none placeholder:text-muted" placeholder="Leave empty for default" rows="4"></textarea>
+</div>
+</section>
+<!-- HOW TO GET YOUR TOKEN Card -->
+<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<header class="mb-5">
+<h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">HOW TO GET YOUR TOKEN</h2>
+</header>
+<ol class="space-y-3">
+<li class="flex gap-3 items-start">
+<span class="flex items-center justify-center w-5 h-5 rounded-full bg-white/5 text-primary text-[10px] font-bold shrink-0 mt-0.5">1</span>
+<p class="text-[13px] text-secondary leading-relaxed">Go to the Claude Console and navigate to the <span class="text-primary">Settings</span> tab.</p>
+</li>
+<li class="flex gap-3 items-start">
+<span class="flex items-center justify-center w-5 h-5 rounded-full bg-white/5 text-primary text-[10px] font-bold shrink-0 mt-0.5">2</span>
+<div class="space-y-2 w-full">
+<p class="text-[13px] text-secondary leading-relaxed">Copy the code from your terminal after running:</p>
+<div class="bg-black/40 border border-white/5 rounded p-2 font-mono text-[11px] text-[#f0f0f5] flex justify-between items-center">
+<code>npm install -g @anthropic-ai/sdk</code>
+<button class="text-muted hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+</li>
+</ol>
+</section>
+</div>
+<!-- Sticky Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/80 backdrop-blur-md border-t border-white/5 py-4 px-6 z-50">
+<div class="max-w-[520px] mx-auto flex items-center justify-between">
+<div class="flex items-center gap-2 text-[#22c55e] text-[13px] font-medium animate-pulse">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span>Saved!</span>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 text-secondary hover:text-white text-[13px] font-medium transition-all active:opacity-80">
+                        Test connection
+                    </button>
+<button class="bg-primary hover:bg-accent text-white px-6 py-2 rounded-md text-[13px] font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+                        Save Changes
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- SideNavBar (Hidden on desktop settings but referenced in JSON) -->
+<aside class="hidden lg:flex flex-col p-4 gap-2 fixed left-0 h-full border-r border-white/5 w-64 bg-[#0a0a0f]">
+<div class="mb-8 px-2">
+<h3 class="font-['Space_Grotesk'] uppercase tracking-widest text-[11px] text-[#606070] mb-1">Settings</h3>
+<p class="text-[#a0a0b0] text-[11px]">Manage extension preferences</p>
+</div>
+<nav class="space-y-1">
+<div class="text-[#6366f1] bg-[#1a1a24] rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+<span>General</span>
+</div>
+<div class="text-[#a0a0b0] hover:bg-white/5 hover:text-[#f0f0f5] rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-[20px]">hub</span>
+<span>Integrations</span>
+</div>
+<div class="text-[#a0a0b0] hover:bg-white/5 hover:text-[#f0f0f5] rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+<span>Advanced</span>
+</div>
+<div class="text-[#a0a0b0] hover:bg-white/5 hover:text-[#f0f0f5] rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-[20px]">info</span>
+<span>About</span>
+</div>
+</nav>
+</aside>
+</body></html>
