@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Z AI Browser Agent - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      Settings
+    </h1>
+
+    <div class="section">
+      <h2>API Configuration</h2>
+
+      <label for="authToken">Auth Token</label>
+      <input type="password" id="authToken" placeholder="Your ANTHROPIC_AUTH_TOKEN" />
+      <p class="hint">Found in ~/.claude/settings.json under "ANTHROPIC_AUTH_TOKEN"</p>
+
+      <label for="apiEndpoint">Endpoint</label>
+      <input type="text" id="apiEndpoint" placeholder="https://api.z.ai/api/anthropic/v1/messages" />
+
+      <label for="modelName">Model</label>
+      <select id="modelName">
+        <option value="glm-5.1">GLM-5.1 (Recommended)</option>
+        <option value="glm-5-turbo">GLM-5-Turbo</option>
+        <option value="glm-5">GLM-5</option>
+        <option value="glm-4.5">GLM-4.5</option>
+        <option value="glm-4.5-flash">GLM-4.5-Flash</option>
+        <option value="glm-4.5-air">GLM-4.5-Air</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h2>Agent</h2>
+
+      <label for="systemPrompt">System Prompt</label>
+      <textarea id="systemPrompt" rows="4" placeholder="Leave empty to use the default Browser Agent prompt."></textarea>
+    </div>
+
+    <div class="section">
+      <h2>How to get your Token</h2>
+      <ol class="steps">
+        <li>Open <code>~/.claude/settings.json</code></li>
+        <li>Copy the value of <code>ANTHROPIC_AUTH_TOKEN</code></li>
+        <li>Paste it above in "Auth Token"</li>
+        <li>Save and done</li>
+      </ol>
+    </div>
+
+    <div class="actions">
+      <button id="saveBtn" class="btn-primary">Save</button>
+      <button id="testBtn" class="btn-secondary">Test connection</button>
+      <span id="status" class="status"></span>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Z AI Browser Agent",
+  "version": "1.0.0",
+  "description": "Agente de automatizacion del navegador con IA. Toma control del browser y ejecuta tareas automaticamente.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "debugger",
+    "sidePanel",
+    "contextMenus",
+    "bookmarks",
+    "history",
+    "downloads",
+    "cookies",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Z AI Browser Agent"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options/options.html",
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
