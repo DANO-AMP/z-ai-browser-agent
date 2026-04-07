@@ -31,6 +31,9 @@
           <option value="glm-4.5-air">Air</option>
         </select>
       </div>
+      <button class="icon-btn" id="scheduleBtn" title="Scheduled tasks">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </button>
       <button class="icon-btn" id="clearBtn" title="New conversation">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
@@ -88,6 +91,42 @@
           <svg class="example-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Scheduled Tasks Panel -->
+  <div class="scheduled-panel hidden" id="scheduledPanel">
+    <div class="scheduled-header">
+      <h3>Scheduled Tasks</h3>
+      <button class="icon-btn" id="backToChat" title="Back to chat">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+    </div>
+
+    <!-- New task form -->
+    <div class="schedule-form">
+      <textarea id="scheduleTask" rows="2" placeholder="Describe the task to run..."></textarea>
+      <div class="schedule-row">
+        <label>Every</label>
+        <select id="scheduleInterval">
+          <option value="5">5 min</option>
+          <option value="15">15 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="60">1 hour</option>
+          <option value="360">6 hours</option>
+          <option value="720">12 hours</option>
+          <option value="1440">24 hours</option>
+        </select>
+        <button class="btn-add-schedule" id="addScheduleBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Task list -->
+    <div class="schedule-list" id="scheduleList">
+      <div class="schedule-empty">No scheduled tasks yet</div>
     </div>
   </div>
 

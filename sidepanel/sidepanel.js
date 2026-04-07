@@ -106,6 +106,95 @@ modelSelect.addEventListener('change', () => {
   chrome.storage.local.set({ modelName: modelSelect.value });
 });
 
+// --- Scheduled Tasks ---
+
+const scheduleBtn = document.getElementById('scheduleBtn');
+const scheduledPanel = document.getElementById('scheduledPanel');
+const backToChat = document.getElementById('backToChat');
+const scheduleTaskInput = document.getElementById('scheduleTask');
+const scheduleInterval = document.getElementById('scheduleInterval');
+const addScheduleBtn = document.getElementById('addScheduleBtn');
+const scheduleList = document.getElementById('scheduleList');
+
+scheduleBtn.addEventListener('click', () => {
+  messagesEl.classList.add('hidden');
+  document.querySelector('.input-area').classList.add('hidden');
+  scheduledPanel.classList.remove('hidden');
+  loadScheduledTasks();
+});
+
+backToChat.addEventListener('click', () => {
+  scheduledPanel.classList.add('hidden');
+  messagesEl.classList.remove('hidden');
+  document.querySelector('.input-area').classList.remove('hidden');
+});
+
+addScheduleBtn.addEventListener('click', () => {
+  const task = scheduleTaskInput.value.trim();
+  if (!task) return;
+  const minutes = parseInt(scheduleInterval.value);
+  chrome.runtime.sendMessage({ type: 'schedule_task', task, cronMinutes: minutes });
+  scheduleTaskInput.value = '';
+  setTimeout(loadScheduledTasks, 300);
+});
+
+function loadScheduledTasks() {
+  chrome.runtime.sendMessage({ type: 'get_scheduled' }, (res) => {
+    const tasks = res?.tasks || [];
+    if (tasks.length === 0) {
+      scheduleList.textContent = '';
+      const empty = document.createElement('div');
+      empty.className = 'schedule-empty';
+      empty.textContent = 'No scheduled tasks yet';
+      scheduleList.appendChild(empty);
+      return;
+    }
+    scheduleList.textContent = '';
+    tasks.forEach((t, i) => {
+      const item = document.createElement('div');
+      item.className = 'schedule-item';
+
+      const taskText = document.createElement('div');
+      taskText.className = 'schedule-item-task';
+      taskText.textContent = t.task;
+
+      const meta = document.createElement('div');
+      meta.className = 'schedule-item-meta';
+
+      const info = document.createElement('div');
+      info.className = 'schedule-item-info';
+      const badge = document.createElement('span');
+      badge.className = 'interval-badge';
+      badge.textContent = formatInterval(t.intervalMinutes);
+      info.appendChild(badge);
+      const created = document.createElement('span');
+      created.textContent = 'Added ' + new Date(t.createdAt).toLocaleDateString();
+      info.appendChild(created);
+
+      const del = document.createElement('button');
+      del.className = 'schedule-item-delete';
+      del.title = 'Delete';
+      del.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'remove_scheduled', index: i });
+        setTimeout(loadScheduledTasks, 200);
+      });
+
+      meta.appendChild(info);
+      meta.appendChild(del);
+      item.appendChild(taskText);
+      item.appendChild(meta);
+      scheduleList.appendChild(item);
+    });
+  });
+}
+
+function formatInterval(min) {
+  if (min < 60) return min + ' min';
+  if (min < 1440) return (min / 60) + ' hr';
+  return (min / 1440) + ' day';
+}
+
 // --- UI Events ---
 
 sendBtn.addEventListener('click', startTask);
