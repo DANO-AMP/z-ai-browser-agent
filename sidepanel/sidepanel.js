@@ -357,14 +357,38 @@ chrome.runtime.onMessage.addListener((msg) => {
     // --- ask_user: Agent needs human input ---
     case 'ask_user':
       removeThinking();
+      // Build options buttons HTML (safe: options come from AI tool call, escaped)
+      let optionsHtml = '';
+      if (msg.options && msg.options.length > 0) {
+        optionsHtml = '<div class="ask-user-options">' +
+          msg.options.map(o => '<button class="ask-option-btn">' + escapeHtml(o) + '</button>').join('') +
+          '</div>';
+      }
       addMsg('ask-user',
-        `<div class="label">&#128100; Agent asks</div>
-         <p>${escapeHtml(msg.question)}</p>
-         <div class="ask-user-input">
-           <input type="text" id="askUserInput" placeholder="Your response..." />
-           <button id="askUserBtn">Send</button>
-         </div>`
+        '<div class="label">Agent asks</div>' +
+        '<p>' + escapeHtml(msg.question) + '</p>' +
+        optionsHtml +
+        '<div class="ask-user-input">' +
+        '<input type="text" id="askUserInput" placeholder="Or type a custom response..." />' +
+        '<button id="askUserBtn">Send</button>' +
+        '</div>'
       );
+      // Bind option buttons
+      document.querySelectorAll('.ask-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.textContent;
+          chrome.runtime.sendMessage({ type: 'user_response', text: val });
+          addMsg('tool-result ok', escapeHtml(val));
+          // Disable all options and input
+          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; b.classList.add('selected-off'); });
+          btn.classList.remove('selected-off');
+          btn.classList.add('selected');
+          const inp = document.getElementById('askUserInput');
+          const btn2 = document.getElementById('askUserBtn');
+          if (inp) inp.disabled = true;
+          if (btn2) btn2.disabled = true;
+        });
+      });
       const askInput = document.getElementById('askUserInput');
       const askBtn = document.getElementById('askUserBtn');
       const sendResponse = () => {
@@ -374,13 +398,13 @@ chrome.runtime.onMessage.addListener((msg) => {
           addMsg('tool-result ok', escapeHtml(val));
           askInput.disabled = true;
           askBtn.disabled = true;
+          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; });
         }
       };
       askBtn.addEventListener('click', sendResponse);
       askInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') sendResponse();
       });
-      askInput.focus();
       break;
 
     // --- Recording ---

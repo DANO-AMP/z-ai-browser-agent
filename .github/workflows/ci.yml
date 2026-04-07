@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifest.json
+        run: |
+          python3 -c "
+          import json, sys
+          with open('manifest.json') as f:
+              m = json.load(f)
+          assert m['manifest_version'] == 3, 'Must be MV3'
+          assert 'background' in m, 'Missing background'
+          assert 'service_worker' in m['background'], 'Missing service worker'
+          print('manifest.json: valid MV3')
+          "
+
+      - name: Check JS syntax
+        run: |
+          for f in background/service-worker.js content/content.js sidepanel/sidepanel.js options/options.js; do
+            node --check "$f" && echo "$f: OK" || exit 1
+          done
+
+      - name: Check no hardcoded secrets
+        run: |
+          ! grep -rn "sk-[a-zA-Z0-9]\{20,\}" --include="*.js" --include="*.json" . || { echo "Possible secret found"; exit 1; }
+          echo "No secrets found"
+
+      - name: Verify file structure
+        run: |
+          for f in manifest.json background/service-worker.js content/content.js \
+                   sidepanel/sidepanel.html sidepanel/sidepanel.js sidepanel/sidepanel.css \
+                   options/options.html options/options.js options/options.css \
+                   shared/tokens.css icons/icon16.png icons/icon48.png icons/icon128.png; do
+            test -f "$f" && echo "$f: exists" || { echo "MISSING: $f"; exit 1; }
+          done
+
+  package:
+    name: Package Extension
+    runs-on: ubuntu-latest
+    needs: lint
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create extension zip
+        id: zip
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+          zip -r "z-ai-browser-agent-v${VERSION}.zip" \
+            manifest.json background/ content/ sidepanel/ options/ shared/ icons/ \
+            -x "*.DS_Store" -x "stitch-designs/*" -x ".omc/*"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: z-ai-browser-agent
+          path: "*.zip"
+          retention-days: 30
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version and check tag
+        id: meta
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build zip for release
+        if: steps.meta.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          zip -r "z-ai-browser-agent-v${VERSION}.zip" \
+            manifest.json background/ content/ sidepanel/ options/ shared/ icons/ \
+            -x "*.DS_Store" -x "stitch-designs/*" -x ".omc/*"
+
+      - name: Create GitHub Release
+        if: steps.meta.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --title "Z AI Browser Agent v${VERSION}" \
+            --notes "## Installation
+          1. Download the zip below
+          2. Extract it
+          3. chrome://extensions/ → Developer mode → Load unpacked
+          4. Select the extracted folder" \
+            --generate-notes \
+            "z-ai-browser-agent-v${VERSION}.zip"

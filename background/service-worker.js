@@ -31,7 +31,7 @@ const TOOLS = [
 
   // --- Wait ---
   {"type":"function","name":"wait","description":"Wait milliseconds for page to load or animation to complete","input_schema":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]},"function":{"name":"wait","description":"Wait","parameters":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]}}},
-  {"type":"function","name":"ask_user","description":"Ask the user a question and wait for their response. Use when you need clarification, encounter a login page, CAPTCHA, or need permission to proceed with a sensitive action.","input_schema":{"type":"object","properties":{"question":{"type":"string"}},"required":["question"]},"function":{"name":"ask_user","description":"Ask user for input","parameters":{"type":"object","properties":{"question":{"type":"string"}},"required":["question"]}}},
+  {"type":"function","name":"ask_user","description":"Ask the user a question and wait for their response. ALWAYS provide an options array with 2-4 clickable choices. Only use when truly blocked (login, CAPTCHA, sensitive action).","input_schema":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"},"description":"2-4 quick reply options for the user to choose from"}},"required":["question"]},"function":{"name":"ask_user","description":"Ask user with options","parameters":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"}}},"required":["question"]}}},
 
   // --- Tab Management ---
   {"type":"function","name":"tab_list","description":"List all open tabs with their titles and URLs","input_schema":{"type":"object","properties":{}},"function":{"name":"tab_list","description":"List all open tabs","parameters":{"type":"object","properties":{}}}},
@@ -60,14 +60,16 @@ const TOOLS = [
 const SYSTEM_PROMPT = `You control a web browser via DevTools Protocol. Use tools to complete tasks.
 
 IMPORTANT RULES:
+- Be AUTONOMOUS. Complete tasks without asking the user unless absolutely necessary.
 - Take a screenshot first to see the page visually, then act.
 - Use CSS selectors to interact with elements.
 - Wait after navigation for pages to load.
 - You can manage tabs, bookmarks, history, downloads and cookies.
 - Use get_console to debug web pages and read browser errors.
-- Use ask_user when you need clarification or encounter a problem.
-- If you detect a LOGIN PAGE, CAPTCHA, or AUTHENTICATION WALL: stop and use ask_user to tell the user to log in manually. Do NOT try to fill login forms with random data.
-- If a task involves SENSITIVE ACTIONS (purchases, deleting data, submitting forms with personal info): use ask_user to confirm before proceeding.
+- If something fails, try an alternative approach before asking the user.
+- If you detect a LOGIN PAGE, CAPTCHA, or AUTHENTICATION WALL: use ask_user with options like ["Log in manually", "Skip this step", "Try another approach"].
+- If a task involves SENSITIVE ACTIONS (purchases, deleting data): use ask_user with clear options like ["Proceed", "Cancel", "Modify"].
+- When using ask_user, ALWAYS provide an "options" array with 2-4 suggested actions so the user can tap instead of typing.
 - Reply in the same language the user writes.`;
 
 let running = false;
@@ -659,8 +661,8 @@ async function executeTool(tabId, tool, params) {
       }
 
       case 'ask_user': {
-        // Send question to side panel and wait for response
-        broadcast({ type: 'ask_user', question: params.question, taskId: currentTaskTabId });
+        // Send question + options to side panel and wait for response
+        broadcast({ type: 'ask_user', question: params.question, options: params.options || [], taskId: currentTaskTabId });
         const response = await new Promise((resolve) => {
           userResponseResolve = resolve;
           // Timeout after 5 minutes

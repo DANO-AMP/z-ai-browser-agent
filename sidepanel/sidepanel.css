@@ -493,6 +493,48 @@ body {
   font-size: 12.5px;
 }
 
+.ask-user-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ask-option-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.ask-option-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.ask-option-btn:active { transform: scale(0.96); }
+
+.ask-option-btn.selected {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  cursor: default;
+}
+
+.ask-option-btn.selected-off {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ask-option-btn:disabled { cursor: default; }
+
 .ask-user-input {
   display: flex;
   gap: 6px;
