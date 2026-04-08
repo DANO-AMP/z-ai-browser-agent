@@ -149,6 +149,12 @@ textarea {
   font-size: 12px;
 }
 
+input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
 .select-wrapper {
   position: relative;
 }
@@ -480,4 +486,42 @@ details[open] .card-header-toggle {
 .btn-improve:disabled {
   opacity: 0.5;
   cursor: wait;
+}
+
+/* === TASK HISTORY === */
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-header-row .card-header {
+  margin-bottom: 0;
+}
+
+.history-list-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 16px 0;
+}
+
+.history-item-result {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

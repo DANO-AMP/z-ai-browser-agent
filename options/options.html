@@ -118,6 +118,17 @@
       </div>
     </section>
 
+    <!-- Task History -->
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-header">Task History</h2>
+        <button class="btn-secondary" id="clearHistoryOptionsBtn" style="font-size:11px;padding:4px 10px;">Clear All</button>
+      </div>
+      <div class="history-list-options" id="historyListOptions">
+        <div class="history-empty">No task history yet</div>
+      </div>
+    </section>
+
     <!-- Advanced -->
     <details class="card">
       <summary class="card-header-toggle">
@@ -133,6 +144,13 @@
         <label for="systemPrompt">System Prompt</label>
         <textarea id="systemPrompt" rows="4" placeholder="Leave empty for default"></textarea>
       </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="soundEnabled" checked style="width:auto;margin:0" />
+          <span>Sound notifications</span>
+        </label>
+        <p class="hint">Play sound when task completes</p>
+      </div>
     </details>
   </main>
 
@@ -147,6 +165,8 @@
     </div>
   </div>
 
+  <script src="../shared/utils.js"></script>
+  <script src="../shared/api.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

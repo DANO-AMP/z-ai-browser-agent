@@ -31,8 +31,14 @@
           <option value="glm-4.5-air">Air</option>
         </select>
       </div>
+      <button class="icon-btn" id="historyBtn" title="Task history">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      </button>
       <button class="icon-btn" id="scheduleBtn" title="Scheduled tasks">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </button>
+      <button class="icon-btn" id="templatesBtn" title="Task templates">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
       </button>
       <button class="icon-btn" id="clearBtn" title="New conversation">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -57,6 +63,9 @@
 
   <!-- Messages -->
   <div class="messages" id="messages">
+    <div class="progress-bar-container" id="progressBarContainer">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
     <div class="welcome">
       <div class="welcome-logo">
         <span class="welcome-letter">Z</span>
@@ -136,8 +145,46 @@
     </div>
   </div>
 
+  <!-- Task History Panel -->
+  <div class="history-panel hidden" id="historyPanel">
+    <div class="history-header">
+      <h3>Task History</h3>
+      <div class="header-actions">
+        <button class="icon-btn" id="clearHistoryBtn" title="Clear history">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+        <button class="icon-btn" id="backToChatFromHistory" title="Back to chat">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">No task history yet</div>
+    </div>
+  </div>
+
+  <!-- Templates Panel -->
+  <div class="templates-panel hidden" id="templatesPanel">
+    <div class="history-header">
+      <h3>Task Templates</h3>
+      <div class="header-actions">
+        <button class="icon-btn" id="backToChatFromTemplates" title="Back to chat">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="templates-list" id="templatesList">
+      <div class="history-empty">No templates yet</div>
+    </div>
+  </div>
+
   <!-- Input Area -->
   <footer class="input-area">
+    <!-- Auto-scroll toggle (positioned above input) -->
+    <button class="auto-scroll-toggle" id="autoScrollToggle" title="Toggle auto-scroll">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7-7"/></svg>
+      <span>Auto</span>
+    </button>
     <div class="input-glow"></div>
     <div class="input-previews" id="inputPreviews"></div>
     <div class="input-wrapper">
@@ -146,6 +193,9 @@
       </button>
       <input type="file" id="fileInput" accept="image/*" multiple hidden />
       <textarea id="input" rows="1" placeholder="Describe a browser task..."></textarea>
+      <button class="save-template-btn" id="saveTemplateBtn" title="Save as template">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>
       <button class="send-btn" id="sendBtn" title="Send">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
@@ -156,6 +206,8 @@
     <div class="input-hint">Press Enter to send</div>
   </footer>
 
+  <script src="../shared/utils.js"></script>
+  <script src="../shared/api.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

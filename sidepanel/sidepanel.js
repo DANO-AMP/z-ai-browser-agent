@@ -15,6 +15,21 @@ let taskIdCounter = 0;
 let currentTabId = null;
 let conversations = {}; // tabId → { html: '' }
 let pendingImages = []; // base64 images to send with next message
+let currentTaskText = ''; // Store current task for export
+let currentModel = ''; // Store current model for export
+let autoScrollEnabled = true; // Auto-scroll toggle state
+let lastTaskInput = ''; // Store last input for Arrow Up shortcut
+
+// Sound notification base64 (short beep)
+const completionSound = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
+
+// --- Post-process markdown to add code copy buttons ---
+function addCodeCopyButtons(html) {
+  // Find all <pre><code> blocks and wrap them with copy button
+  return html.replace(/<pre><code class="language-(\w*)">/g, (match, lang) => {
+    return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-block-lang">${lang}</span><button class="code-block-copy" title="Copy code">Copy</button></div><pre><code class="language-${lang}">`;
+  }).replace(/<\/code><\/pre>/g, '</code></pre></div>');
+}
 
 // --- Image Handling ---
 const attachBtn = document.getElementById('attachBtn');
@@ -70,6 +85,8 @@ function renderPreviews() {
 }
 
 // --- Init ---
+// Store original welcome HTML for reset
+const originalWelcomeHTML = document.querySelector('.welcome').outerHTML;
 loadModel();
 updateTabInfo();
 
@@ -112,22 +129,7 @@ function loadConversation(tabId) {
 }
 
 function showWelcome() {
-  // Static hardcoded welcome — no user input, safe for innerHTML
-  const chev = '<svg class="example-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
-  const icon = (d) => '<span class="example-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + d + '</svg></span>';
-  const btn = (task, ico, label) => '<button class="example-btn" data-task="' + task + '">' + ico + '<span>' + label + '</span>' + chev + '</button>';
-  const welcomeHTML = '<div class="welcome">'
-    + '<div class="welcome-logo"><span class="welcome-letter">Z</span><div class="welcome-glow"></div></div>'
-    + '<h2>What would you like me to do?</h2>'
-    + '<p>Navigate, click, type, extract data, debug pages and more.</p>'
-    + '<div class="examples">'
-    + btn("Abre google.com y busca 'noticias de hoy'", icon('<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>'), 'Search on Google')
-    + btn('Toma una captura de pantalla y dime que ves', icon('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'), 'Analyze current page')
-    + btn('Busca en mi historial la ultima pagina de YouTube que visite', icon('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'), 'Search browser history')
-    + btn('Lee los errores de la consola de esta pagina y ayudame a corregirlos', icon('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>'), 'Debug page errors')
-    + btn('Lista todas las pestanas abiertas y dime el titulo de cada una', icon('<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 7h20M9 3v4"/>'), 'List all open tabs')
-    + '</div></div>';
-  messagesEl.innerHTML = welcomeHTML; // safe: static content only
+  messagesEl.innerHTML = originalWelcomeHTML;
   rebindExampleBtns();
 }
 
@@ -174,6 +176,7 @@ scheduleBtn.addEventListener('click', () => {
   messagesEl.classList.add('hidden');
   document.querySelector('.input-area').classList.add('hidden');
   scheduledPanel.classList.remove('hidden');
+  historyPanel.classList.add('hidden');
   loadScheduledTasks();
 });
 
@@ -182,6 +185,206 @@ backToChat.addEventListener('click', () => {
   messagesEl.classList.remove('hidden');
   document.querySelector('.input-area').classList.remove('hidden');
 });
+
+// --- Task History ---
+
+const historyBtn = document.getElementById('historyBtn');
+const historyPanel = document.getElementById('historyPanel');
+const backToChatFromHistory = document.getElementById('backToChatFromHistory');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+const historyList = document.getElementById('historyList');
+
+historyBtn.addEventListener('click', () => {
+  messagesEl.classList.add('hidden');
+  document.querySelector('.input-area').classList.add('hidden');
+  historyPanel.classList.remove('hidden');
+  scheduledPanel.classList.add('hidden');
+  loadHistory();
+});
+
+backToChatFromHistory.addEventListener('click', () => {
+  historyPanel.classList.add('hidden');
+  messagesEl.classList.remove('hidden');
+  document.querySelector('.input-area').classList.remove('hidden');
+});
+
+clearHistoryBtn.addEventListener('click', () => {
+  if (confirm('Clear all task history?')) {
+    chrome.storage.local.set({ taskHistory: [] });
+    loadHistory();
+  }
+});
+
+// --- Task Templates ---
+
+const templatesBtn = document.getElementById('templatesBtn');
+const templatesPanel = document.getElementById('templatesPanel');
+const backToChatFromTemplates = document.getElementById('backToChatFromTemplates');
+const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+const templatesList = document.getElementById('templatesList');
+
+templatesBtn.addEventListener('click', () => {
+  messagesEl.classList.add('hidden');
+  document.querySelector('.input-area').classList.add('hidden');
+  templatesPanel.classList.remove('hidden');
+  loadTemplates();
+});
+
+backToChatFromTemplates.addEventListener('click', () => {
+  templatesPanel.classList.add('hidden');
+  messagesEl.classList.remove('hidden');
+  document.querySelector('.input-area').classList.remove('hidden');
+});
+
+saveTemplateBtn.addEventListener('click', () => {
+  const task = inputEl.value.trim();
+  if (!task) return;
+  const name = prompt('Template name:', task.substring(0, 30));
+  if (!name) return;
+
+  chrome.storage.local.get(['taskTemplates'], (data) => {
+    const templates = data.taskTemplates || [];
+    templates.unshift({
+      name,
+      task,
+      createdAt: Date.now()
+    });
+    // Keep max 50 templates
+    if (templates.length > 50) templates.pop();
+    chrome.storage.local.set({ taskTemplates: templates });
+    showStatus('Template saved!', true);
+  });
+});
+
+function loadTemplates() {
+  chrome.storage.local.get(['taskTemplates'], (data) => {
+    const templates = data.taskTemplates || [];
+    if (templates.length === 0) {
+      templatesList.textContent = '';
+      const empty = document.createElement('div');
+      empty.className = 'history-empty';
+      empty.textContent = 'No templates yet';
+      templatesList.appendChild(empty);
+      return;
+    }
+    templatesList.textContent = '';
+    templates.forEach((tmpl, index) => {
+      const div = document.createElement('div');
+      div.className = 'template-item';
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'template-item-name';
+      nameDiv.textContent = tmpl.name;
+
+      const taskDiv = document.createElement('div');
+      taskDiv.className = 'template-item-task';
+      taskDiv.textContent = tmpl.task;
+
+      const meta = document.createElement('div');
+      meta.className = 'template-item-meta';
+
+      const actions = document.createElement('div');
+      actions.className = 'template-item-actions';
+
+      const run = document.createElement('button');
+      run.className = 'template-item-run';
+      run.textContent = 'Run';
+      run.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Switch to chat view and run the template
+        templatesPanel.classList.add('hidden');
+        messagesEl.classList.remove('hidden');
+        document.querySelector('.input-area').classList.remove('hidden');
+        inputEl.value = tmpl.task;
+        startTask();
+      });
+
+      const del = document.createElement('button');
+      del.className = 'template-item-delete';
+      del.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Delete this template?')) {
+          chrome.storage.local.get(['taskTemplates'], (data) => {
+            const templates = data.taskTemplates || [];
+            templates.splice(index, 1);
+            chrome.storage.local.set({ taskTemplates: templates });
+            loadTemplates();
+          });
+        }
+      });
+
+      actions.appendChild(run);
+      actions.appendChild(del);
+      meta.appendChild(actions);
+      div.appendChild(nameDiv);
+      div.appendChild(taskDiv);
+      div.appendChild(meta);
+      templatesList.appendChild(div);
+    });
+  });
+}
+
+function loadHistory() {
+  chrome.storage.local.get(['taskHistory'], (data) => {
+    const history = data.taskHistory || [];
+    if (history.length === 0) {
+      historyList.textContent = '';
+      const empty = document.createElement('div');
+      empty.className = 'history-empty';
+      empty.textContent = 'No task history yet';
+      historyList.appendChild(empty);
+      return;
+    }
+    historyList.textContent = '';
+    history.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+
+      const taskDiv = document.createElement('div');
+      taskDiv.className = 'history-item-task';
+      taskDiv.textContent = item.task;
+
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'history-item-result';
+      resultDiv.textContent = item.result || 'No result';
+
+      const meta = document.createElement('div');
+      meta.className = 'history-item-meta';
+
+      const dateDiv = document.createElement('div');
+      dateDiv.className = 'history-item-date';
+      dateDiv.textContent = new Date(item.timestamp).toLocaleString();
+
+      const rerunBtn = document.createElement('button');
+      rerunBtn.className = 'history-item-rerun';
+      rerunBtn.textContent = 'Rerun';
+      rerunBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        rerunBtn.textContent = '...';
+        rerunBtn.disabled = true;
+        chrome.runtime.sendMessage({
+          type: 'run_task',
+          task: item.task,
+          taskId: Date.now(),
+          model: item.model || null
+        });
+        // Switch to chat view
+        historyPanel.classList.add('hidden');
+        messagesEl.classList.remove('hidden');
+        document.querySelector('.input-area').classList.remove('hidden');
+        setTimeout(() => { rerunBtn.textContent = 'Rerun'; rerunBtn.disabled = false; }, 3000);
+      });
+
+      meta.appendChild(dateDiv);
+      meta.appendChild(rerunBtn);
+      div.appendChild(taskDiv);
+      if (item.result) div.appendChild(resultDiv);
+      div.appendChild(meta);
+      historyList.appendChild(div);
+    });
+  });
+}
 
 addScheduleBtn.addEventListener('click', () => {
   const task = scheduleTaskInput.value.trim();
@@ -277,31 +480,13 @@ improvePromptSidepanel.addEventListener('click', async () => {
     const config = await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName']);
     if (!config.authToken) { improvePromptSidepanel.disabled = false; improvePromptSidepanel.textContent = 'Improve'; return; }
     const endpoint = config.apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': config.authToken, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: config.modelName || 'glm-5.1',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: 'Improve this browser automation task prompt. Fix spelling, grammar, make it clearer and more precise for an AI agent. Return ONLY the improved prompt, nothing else:\n\n' + text }]
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const improved = data.content?.find(b => b.type === 'text')?.text || text;
-      scheduleTaskInput.value = improved.trim();
-    }
+    const improved = await improvePrompt(endpoint, config.authToken, config.modelName || 'glm-5.1', text);
+    scheduleTaskInput.value = improved;
   } catch {}
 
   improvePromptSidepanel.disabled = false;
   improvePromptSidepanel.textContent = 'Improve';
 });
-
-function formatInterval(min) {
-  if (min < 60) return min + ' min';
-  if (min < 1440) return (min / 60) + ' hr';
-  return (min / 1440) + ' day';
-}
 
 // --- UI Events ---
 
@@ -322,6 +507,41 @@ inputEl.addEventListener('input', () => {
   inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
 });
 
+// --- Keyboard Shortcuts ---
+document.addEventListener('keydown', (e) => {
+  // Escape = Stop task
+  if (e.key === 'Escape' && !sendBtn.classList.contains('hidden')) {
+    stopTask();
+    return;
+  }
+
+  // Ctrl/Cmd+K = Clear conversation
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    clearMessages();
+    return;
+  }
+
+  // Arrow Up = Edit last message (when input is empty and not focused)
+  if (e.key === 'ArrowUp' && document.activeElement !== inputEl && lastTaskInput) {
+    e.preventDefault();
+    inputEl.value = lastTaskInput;
+    inputEl.focus();
+    inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+  }
+});
+
+// --- Sound Notification ---
+function playCompletionSound() {
+  chrome.storage.local.get(['soundEnabled'], (data) => {
+    if (data.soundEnabled !== false) { // Default is enabled
+      const audio = new Audio(completionSound);
+      audio.volume = 0.3;
+      audio.play().catch(() => {}); // Ignore errors (autoplay policy)
+    }
+  });
+}
+
 function rebindExampleBtns() {
   document.querySelectorAll('.example-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -337,19 +557,42 @@ rebindExampleBtns();
 
 chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
-    case 'task_start':
+    case 'task_start': {
       removeWelcome();
+      currentTaskText = msg.text;
+      currentModel = msg.model || modelSelect.value;
+      lastTaskInput = msg.text;
       addMsg('task', `<div class="label">Task</div>${escapeHtml(msg.text)}`);
       setStatus('running', 'Running...');
       toggleButtons(true);
+      // Reset progress bar
+      const progressBar = document.getElementById('progressBarFill');
+      const progressContainer = document.getElementById('progressBarContainer');
+      if (progressBar) progressBar.style.width = '0%';
+      if (progressContainer) progressContainer.style.display = 'none';
       break;
+    }
+
+    case 'progress': {
+      // Update status text and progress bar
+      if (msg.text) setStatus('running', msg.text);
+      if (msg.percent !== undefined) {
+        const progressBar = document.getElementById('progressBarFill');
+        const progressContainer = document.getElementById('progressBarContainer');
+        if (progressBar && progressContainer) {
+          progressContainer.style.display = 'block';
+          progressBar.style.width = msg.percent + '%';
+        }
+      }
+      break;
+    }
 
     case 'thinking':
       removeThinking();
       addMsg('thinking', 'Thinking...');
       break;
 
-    case 'tool_call':
+    case 'tool_call': {
       removeThinking();
       const icons = {
         navigate: '&#128279;', click: '&#128433;', type_text: '&#9000;',
@@ -375,8 +618,9 @@ chrome.runtime.onMessage.addListener((msg) => {
          <div class="tool-params">${escapeHtml(params)}</div></div>`
       );
       break;
+    }
 
-    case 'tool_result':
+    case 'tool_result': {
       const resultStr = typeof msg.result === 'string'
         ? msg.result
         : JSON.stringify(msg.result, null, 2);
@@ -384,11 +628,28 @@ chrome.runtime.onMessage.addListener((msg) => {
       const truncated = resultStr.substring(0, 1000) + (resultStr.length > 1000 ? '\n...' : '');
       addMsg(`tool-result ${isErr ? 'err' : 'ok'}`, escapeHtml(truncated));
       break;
+    }
 
-    case 'final_response':
+    case 'final_response': {
       removeThinking();
-      addMsg('response', `<div class="label">Result</div>${renderMarkdown(msg.text)}`);
+      const exportBtnHtml = '<button class="export-btn" title="Export result" data-text="' + escapeHtml(msg.text).replace(/"/g, '&quot;') + '" data-task="' + escapeHtml(currentTaskText).replace(/"/g, '&quot;') + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
+      const renderedMarkdown = addCodeCopyButtons(renderMarkdown(msg.text));
+      addMsg('response', `<div class="label">Result ${exportBtnHtml}</div>${renderedMarkdown}`);
+      // Bind export button
+      const exportBtn = messagesEl.querySelector('.export-btn:last-of-type');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          const task = exportBtn.dataset.task;
+          const result = exportBtn.dataset.text;
+          const filename = `task-${Date.now()}.md`;
+          const content = `# Task\n${task}\n\n# Model\n${currentModel}\n\n# Date\n${new Date().toLocaleString()}\n\n# Result\n${result}\n`;
+          const blob = new Blob([content], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          chrome.downloads.download({ url, filename, saveAs: false }, () => URL.revokeObjectURL(url));
+        });
+      }
       break;
+    }
 
     case 'error':
       removeThinking();
@@ -397,11 +658,17 @@ chrome.runtime.onMessage.addListener((msg) => {
       toggleButtons(false);
       break;
 
-    case 'task_end':
+    case 'task_end': {
       addMsg('task-end', `Task completed`);
       setStatus('', 'Ready');
       toggleButtons(false);
+      // Hide progress bar
+      const progressContainer = document.getElementById('progressBarContainer');
+      if (progressContainer) progressContainer.style.display = 'none';
+      // Play completion sound
+      playCompletionSound();
       break;
+    }
 
     case 'incoming_task':
       inputEl.value = msg.text;
@@ -409,7 +676,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       break;
 
     // --- ask_user: Agent needs human input ---
-    case 'ask_user':
+    case 'ask_user': {
       removeThinking();
       // Build options buttons HTML (safe: options come from AI tool call, escaped)
       let optionsHtml = '';
@@ -460,6 +727,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         if (e.key === 'Enter') sendResponse();
       });
       break;
+    }
 
     // --- Recording ---
     case 'record_frame':
@@ -506,6 +774,54 @@ function clearMessages() {
   if (currentTabId) conversations[currentTabId] = { html: '' };
 }
 
+// --- Auto-scroll Toggle ---
+const autoScrollToggle = document.getElementById('autoScrollToggle');
+
+// Initialize auto-scroll toggle state
+chrome.storage.local.get(['autoScrollEnabled'], (data) => {
+  autoScrollEnabled = data.autoScrollEnabled !== false; // Default is enabled
+  autoScrollToggle.classList.toggle('active', autoScrollEnabled);
+  autoScrollToggle.querySelector('span').textContent = autoScrollEnabled ? 'Auto' : 'Off';
+});
+
+autoScrollToggle.addEventListener('click', () => {
+  autoScrollEnabled = !autoScrollEnabled;
+  autoScrollToggle.classList.toggle('active', autoScrollEnabled);
+  autoScrollToggle.querySelector('span').textContent = autoScrollEnabled ? 'Auto' : 'Off';
+  chrome.storage.local.set({ autoScrollEnabled });
+});
+
+// --- Code Copy Button Handler ---
+function bindCodeCopyButtons() {
+  messagesEl.querySelectorAll('.code-block-copy').forEach(btn => {
+    if (btn.dataset.bound) return; // Skip already bound buttons
+    btn.dataset.bound = 'true';
+
+    btn.addEventListener('click', () => {
+      const codeBlock = btn.closest('.code-block-wrapper');
+      const code = codeBlock?.querySelector('code');
+      if (code) {
+        navigator.clipboard.writeText(code.textContent).then(() => {
+          const originalText = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = originalText; }, 2000);
+        });
+      }
+    });
+  });
+}
+
+// Watch for new code blocks and bind copy buttons
+const codeBlockObserver = new MutationObserver(() => {
+  bindCodeCopyButtons();
+  // Auto-scroll if enabled
+  if (autoScrollEnabled) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+});
+
+codeBlockObserver.observe(messagesEl, { childList: true, subtree: true });
+
 // --- Helpers ---
 
 function addMsg(type, html) {
@@ -513,7 +829,7 @@ function addMsg(type, html) {
   div.className = `msg ${type}`;
   div.innerHTML = html;
   messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  if (autoScrollEnabled) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function removeThinking() {
@@ -537,30 +853,10 @@ function toggleButtons(isRunning) {
   inputEl.disabled = isRunning;
 }
 
-function escapeHtml(text) {
-  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-  return String(text).replace(/[&<>"]/g, c => map[c]);
+function showStatus(text) {
+  const statusText = statusEl.querySelector('.status-text');
+  if (statusText) statusText.textContent = text;
+  setTimeout(() => { if (statusText) statusText.textContent = 'Ready'; }, 2000);
 }
 
-function renderMarkdown(text) {
-  let html = escapeHtml(text);
-
-  // Code blocks
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) =>
-    `<pre><code>${code.trim()}</code></pre>`);
-
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Italic
-  html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-
-  // Line breaks
-  html = html.replace(/\n\n/g, '</p><p>');
-  html = html.replace(/\n/g, '<br>');
-
-  return html;
-}
+// escapeHtml and renderMarkdown now in shared/utils.js

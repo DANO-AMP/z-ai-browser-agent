@@ -2,6 +2,7 @@ const authTokenInput = document.getElementById("authToken");
 const apiEndpointInput = document.getElementById("apiEndpoint");
 const modelNameSelect = document.getElementById("modelName");
 const systemPromptInput = document.getElementById("systemPrompt");
+const soundEnabledInput = document.getElementById("soundEnabled");
 const saveBtn = document.getElementById("saveBtn");
 const testBtn = document.getElementById("testBtn");
 const statusEl = document.getElementById("status");
@@ -14,11 +15,12 @@ const DEFAULTS = {
 const alertBanner = document.getElementById("alertBanner");
 
 // Load saved settings
-chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt"], (data) => {
+chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt", "soundEnabled"], (data) => {
   authTokenInput.value = data.authToken || "";
   apiEndpointInput.value = data.apiEndpoint || DEFAULTS.apiEndpoint;
   modelNameSelect.value = data.modelName || DEFAULTS.modelName;
   systemPromptInput.value = data.systemPrompt || "";
+  soundEnabledInput.checked = data.soundEnabled !== false; // Default is enabled
   // Show warning if no API key
   if (!data.authToken) alertBanner.style.display = "flex";
 });
@@ -39,7 +41,8 @@ saveBtn.addEventListener("click", () => {
     authToken: authTokenInput.value.trim(),
     apiEndpoint: apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint,
     modelName: modelNameSelect.value,
-    systemPrompt: systemPromptInput.value.trim()
+    systemPrompt: systemPromptInput.value.trim(),
+    soundEnabled: soundEnabledInput.checked
   });
   showStatus("Saved!", true);
   if (authTokenInput.value.trim()) alertBanner.style.display = "none";
@@ -96,11 +99,7 @@ const addSchedBtn = document.getElementById("addSchedBtn");
 const schedListEl = document.getElementById("schedListOptions");
 const improveBtn = document.getElementById("improvePromptBtn");
 
-function formatInterval(min) {
-  if (min < 60) return min + " min";
-  if (min < 1440) return (min / 60) + " hr";
-  return (min / 1440) + " day";
-}
+// formatInterval now in shared/utils.js
 
 function loadScheduledTasks() {
   chrome.runtime.sendMessage({ type: "get_scheduled" }, (res) => {
@@ -189,26 +188,8 @@ improveBtn.addEventListener("click", async () => {
   improveBtn.textContent = "Improving...";
 
   try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": authToken,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 300,
-        messages: [{ role: "user", content: `Improve this browser automation task prompt. Fix spelling, grammar, make it clearer and more precise for an AI agent. Return ONLY the improved prompt, nothing else:\n\n${text}` }]
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const improved = data.content?.find(b => b.type === "text")?.text || text;
-      schedTaskInput.value = improved.trim();
-    } else {
-      showStatus("Could not improve prompt", false);
-    }
+    const improved = await improvePrompt(endpoint, authToken, model, text);
+    schedTaskInput.value = improved;
   } catch (e) {
     showStatus("Error: " + e.message, false);
   }
@@ -219,3 +200,60 @@ improveBtn.addEventListener("click", async () => {
 
 // Load tasks on page open
 loadScheduledTasks();
+
+// --- TASK HISTORY ---
+
+const historyListOptions = document.getElementById('historyListOptions');
+const clearHistoryOptionsBtn = document.getElementById('clearHistoryOptionsBtn');
+
+function loadTaskHistory() {
+  chrome.storage.local.get(['taskHistory'], (data) => {
+    const history = data.taskHistory || [];
+    historyListOptions.textContent = '';
+    if (history.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'history-empty';
+      empty.textContent = 'No task history yet';
+      historyListOptions.appendChild(empty);
+      return;
+    }
+    history.slice(0, 20).forEach((item) => {
+      const div = document.createElement('div');
+      div.className = 'sched-item';
+
+      const taskText = document.createElement('div');
+      taskText.className = 'sched-item-task';
+      taskText.textContent = item.task;
+
+      const footer = document.createElement('div');
+      footer.className = 'sched-item-footer';
+
+      const meta = document.createElement('div');
+      meta.className = 'sched-item-meta';
+      const date = document.createElement('span');
+      date.textContent = new Date(item.timestamp).toLocaleString();
+      meta.appendChild(date);
+
+      div.appendChild(taskText);
+      if (item.result) {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'history-item-result';
+        resultDiv.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:4px;padding-top:4px;border-top:1px solid var(--border-subtle);';
+        resultDiv.textContent = item.result.substring(0, 200) + (item.result.length > 200 ? '...' : '');
+        div.appendChild(resultDiv);
+      }
+      div.appendChild(meta);
+      historyListOptions.appendChild(div);
+    });
+  });
+}
+
+clearHistoryOptionsBtn.addEventListener('click', () => {
+  if (confirm('Clear all task history?')) {
+    chrome.storage.local.set({ taskHistory: [] });
+    loadTaskHistory();
+  }
+});
+
+// Load history on page open
+loadTaskHistory();

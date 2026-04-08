@@ -3,58 +3,67 @@
 
 const TOOLS = [
   // --- Navigation & Page ---
-  {"type":"function","name":"navigate","description":"Go to a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]},"function":{"name":"navigate","description":"Go to a URL","parameters":{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]}}},
-  {"type":"function","name":"go_back","description":"Go back in browser history","input_schema":{"type":"object","properties":{}},"function":{"name":"go_back","description":"Go back in browser history","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"go_forward","description":"Go forward in browser history","input_schema":{"type":"object","properties":{}},"function":{"name":"go_forward","description":"Go forward in browser history","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"url","description":"Get current page URL","input_schema":{"type":"object","properties":{}},"function":{"name":"url","description":"Get current URL","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"get_page","description":"Read visible text of the page or a specific element","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}},"function":{"name":"get_page","description":"Read visible text","parameters":{"type":"object","properties":{"selector":{"type":"string"}}}}},
-  {"type":"function","name":"get_html","description":"Get the HTML source of a specific element or the whole page body","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}},"function":{"name":"get_html","description":"Get HTML source of element","parameters":{"type":"object","properties":{"selector":{"type":"string"}}}}},
-  {"type":"function","name":"get_page_title","description":"Get the current page title","input_schema":{"type":"object","properties":{}},"function":{"name":"get_page_title","description":"Get page title","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"screenshot","description":"Take a screenshot of the current page to see it visually","input_schema":{"type":"object","properties":{}},"function":{"name":"screenshot","description":"Take a screenshot","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"find","description":"Find elements by CSS selector, returns list with text and attributes","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]},"function":{"name":"find","description":"Find elements","parameters":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}}},
+  {"type":"function","name":"navigate","description":"Go to a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]}},
+  {"type":"function","name":"go_back","description":"Go back in browser history","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"go_forward","description":"Go forward in browser history","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"url","description":"Get current page URL","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"get_page","description":"Read visible text of the page or a specific element","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}}},
+  {"type":"function","name":"get_html","description":"Get the HTML source of a specific element or the whole page body","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}}},
+  {"type":"function","name":"get_page_title","description":"Get the current page title","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"screenshot","description":"Take a screenshot of the current page to see it visually","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"find","description":"Find elements by CSS selector, returns list with text and attributes","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
 
   // --- Console & Debugging ---
-  {"type":"function","name":"get_console","description":"Read browser console logs (errors, warnings, info). Useful for debugging web pages.","input_schema":{"type":"object","properties":{"level":{"type":"string","enum":["all","error","warning","info"],"description":"Filter by log level"}}},"function":{"name":"get_console","description":"Read console logs","parameters":{"type":"object","properties":{"level":{"type":"string","enum":["all","error","warning","info"]}}}}},
+  {"type":"function","name":"get_console","description":"Read browser console logs (errors, warnings, info). Useful for debugging web pages.","input_schema":{"type":"object","properties":{"level":{"type":"string","enum":["all","error","warning","info"],"description":"Filter by log level"}}}},
+  {"type":"function","name":"performance_metrics","description":"Get page performance metrics including FCP, LCP, DOM nodes, and JS heap size","input_schema":{"type":"object","properties":{}}},
 
   // --- Interaction ---
-  {"type":"function","name":"click","description":"Click element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]},"function":{"name":"click","description":"Click element by CSS selector","parameters":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}}},
-  {"type":"function","name":"type_text","description":"Type text into input field","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]},"function":{"name":"type_text","description":"Type text into input field","parameters":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}}},
-  {"type":"function","name":"press_key","description":"Press a key (Enter, Tab, Escape, Backspace, etc)","input_schema":{"type":"object","properties":{"key":{"type":"string"}},"required":["key"]},"function":{"name":"press_key","description":"Press a key","parameters":{"type":"object","properties":{"key":{"type":"string"}},"required":["key"]}}},
-  {"type":"function","name":"hover","description":"Hover over an element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]},"function":{"name":"hover","description":"Hover over element","parameters":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}}},
-  {"type":"function","name":"select_option","description":"Select an option in a dropdown/select element by its visible text","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]},"function":{"name":"select_option","description":"Select dropdown option","parameters":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}}},
-  {"type":"function","name":"scroll","description":"Scroll page up or down","input_schema":{"type":"object","properties":{"dir":{"type":"string","enum":["up","down"]}},"required":["dir"]},"function":{"name":"scroll","description":"Scroll page","parameters":{"type":"object","properties":{"dir":{"type":"string","enum":["up","down"]}},"required":["dir"]}}},
-  {"type":"function","name":"drag","description":"Drag an element from one position to another","input_schema":{"type":"object","properties":{"from_selector":{"type":"string"},"to_selector":{"type":"string"}},"required":["from_selector","to_selector"]},"function":{"name":"drag","description":"Drag element","parameters":{"type":"object","properties":{"from_selector":{"type":"string"},"to_selector":{"type":"string"}},"required":["from_selector","to_selector"]}}},
+  {"type":"function","name":"click","description":"Click element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
+  {"type":"function","name":"type_text","description":"Type text into input field","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}},
+  {"type":"function","name":"press_key","description":"Press a key (Enter, Tab, Escape, Backspace, etc)","input_schema":{"type":"object","properties":{"key":{"type":"string"}},"required":["key"]}},
+  {"type":"function","name":"hover","description":"Hover over an element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
+  {"type":"function","name":"select_option","description":"Select an option in a dropdown/select element by its visible text","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}},
+  {"type":"function","name":"scroll","description":"Scroll page up or down","input_schema":{"type":"object","properties":{"dir":{"type":"string","enum":["up","down"]}},"required":["dir"]}},
+  {"type":"function","name":"drag","description":"Drag an element from one position to another","input_schema":{"type":"object","properties":{"from_selector":{"type":"string"},"to_selector":{"type":"string"}},"required":["from_selector","to_selector"]}},
+  {"type":"function","name":"form_fill","description":"Fill multiple form fields at once. Provide an object mapping CSS selectors to their values.","input_schema":{"type":"object","properties":{"fields":{"type":"object","description":"Object mapping CSS selectors to values (e.g., {\"#name\":\"John\",\".email\":\"test@example.com\"})"}},"required":["fields"]}},
 
   // --- Advanced ---
-  {"type":"function","name":"evaluate_js","description":"Execute custom JavaScript code on the page and return the result. Use for complex interactions.","input_schema":{"type":"object","properties":{"code":{"type":"string"}},"required":["code"]},"function":{"name":"evaluate_js","description":"Run JavaScript","parameters":{"type":"object","properties":{"code":{"type":"string"}},"required":["code"]}}},
-  {"type":"function","name":"set_viewport","description":"Change the page viewport size for responsive testing","input_schema":{"type":"object","properties":{"width":{"type":"number"},"height":{"type":"number"}},"required":["width","height"]},"function":{"name":"set_viewport","description":"Set viewport size","parameters":{"type":"object","properties":{"width":{"type":"number"},"height":{"type":"number"}},"required":["width","height"]}}},
+  {"type":"function","name":"evaluate_js","description":"Execute custom JavaScript code on the page and return the result. Use for complex interactions.","input_schema":{"type":"object","properties":{"code":{"type":"string"}},"required":["code"]}},
+  {"type":"function","name":"set_viewport","description":"Change the page viewport size for responsive testing","input_schema":{"type":"object","properties":{"width":{"type":"number"},"height":{"type":"number"}},"required":["width","height"]}},
+  {"type":"function","name":"viewport_presets","description":"Apply common device viewport presets for responsive testing","input_schema":{"type":"object","properties":{"device":{"type":"string","enum":["iphone-se","iphone-14","ipad","pixel-7","desktop-1080","desktop-4k"],"description":"Device preset to apply"}},"required":["device"]}},
+  {"type":"function","name":"clipboard_read","description":"Read the current clipboard content from the page","input_schema":{"type":"object","properties":{}}},
 
   // --- Wait ---
-  {"type":"function","name":"wait","description":"Wait milliseconds for page to load or animation to complete","input_schema":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]},"function":{"name":"wait","description":"Wait","parameters":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]}}},
-  {"type":"function","name":"ask_user","description":"Ask the user a question and wait for their response. ALWAYS provide an options array with 2-4 clickable choices. Only use when truly blocked (login, CAPTCHA, sensitive action).","input_schema":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"},"description":"2-4 quick reply options for the user to choose from"}},"required":["question"]},"function":{"name":"ask_user","description":"Ask user with options","parameters":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"}}},"required":["question"]}}},
+  {"type":"function","name":"wait","description":"Wait milliseconds for page to load or animation to complete","input_schema":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]}},
+  {"type":"function","name":"ask_user","description":"Ask the user a question and wait for their response. ALWAYS provide an options array with 2-4 clickable choices. Only use when truly blocked (login, CAPTCHA, sensitive action).","input_schema":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"},"description":"2-4 quick reply options for the user to choose from"}},"required":["question"]}},
 
   // --- Tab Management ---
-  {"type":"function","name":"tab_list","description":"List all open tabs with their titles and URLs","input_schema":{"type":"object","properties":{}},"function":{"name":"tab_list","description":"List all open tabs","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"tab_switch","description":"Switch to a different tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]},"function":{"name":"tab_switch","description":"Switch to tab by index","parameters":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}}},
-  {"type":"function","name":"tab_new","description":"Open a new tab with an optional URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}}},"function":{"name":"tab_new","description":"Open new tab","parameters":{"type":"object","properties":{"url":{"type":"string"}}}}},
-  {"type":"function","name":"tab_close","description":"Close a tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]},"function":{"name":"tab_close","description":"Close tab by index","parameters":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}}},
+  {"type":"function","name":"tab_list","description":"List all open tabs with their titles and URLs","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"tab_switch","description":"Switch to a different tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}},
+  {"type":"function","name":"tab_new","description":"Open a new tab with an optional URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}}}},
+  {"type":"function","name":"tab_close","description":"Close a tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}},
 
   // --- Bookmarks ---
-  {"type":"function","name":"bookmark_search","description":"Search bookmarks by query string","input_schema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]},"function":{"name":"bookmark_search","description":"Search bookmarks","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
-  {"type":"function","name":"bookmark_create","description":"Bookmark the current page or a specific URL","input_schema":{"type":"object","properties":{"title":{"type":"string"},"url":{"type":"string"}}},"function":{"name":"bookmark_create","description":"Create bookmark","parameters":{"type":"object","properties":{"title":{"type":"string"},"url":{"type":"string"}}}}},
+  {"type":"function","name":"bookmark_search","description":"Search bookmarks by query string","input_schema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}},
+  {"type":"function","name":"bookmark_create","description":"Bookmark the current page or a specific URL","input_schema":{"type":"object","properties":{"title":{"type":"string"},"url":{"type":"string"}}}},
 
   // --- History ---
-  {"type":"function","name":"history_search","description":"Search browser history by text query. Returns recent matching visits.","input_schema":{"type":"object","properties":{"query":{"type":"string"},"max_results":{"type":"number"}},"required":["query"]},"function":{"name":"history_search","description":"Search browser history","parameters":{"type":"object","properties":{"query":{"type":"string"},"max_results":{"type":"number"}},"required":["query"]}}},
+  {"type":"function","name":"history_search","description":"Search browser history by text query. Returns recent matching visits.","input_schema":{"type":"object","properties":{"query":{"type":"string"},"max_results":{"type":"number"}},"required":["query"]}},
 
   // --- Downloads ---
-  {"type":"function","name":"download","description":"Download a file from a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"},"filename":{"type":"string"}},"required":["url"]},"function":{"name":"download","description":"Download file","parameters":{"type":"object","properties":{"url":{"type":"string"},"filename":{"type":"string"}},"required":["url"]}}},
+  {"type":"function","name":"download","description":"Download a file from a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"},"filename":{"type":"string"}},"required":["url"]}},
 
   // --- Cookies ---
-  {"type":"function","name":"get_cookies","description":"Get cookies for the current page or a specific domain","input_schema":{"type":"object","properties":{"domain":{"type":"string"}}},"function":{"name":"get_cookies","description":"Get cookies","parameters":{"type":"object","properties":{"domain":{"type":"string"}}}}},
+  {"type":"function","name":"get_cookies","description":"Get cookies for the current page or a specific domain","input_schema":{"type":"object","properties":{"domain":{"type":"string"}}}},
+  {"type":"function","name":"cookie_set","description":"Set a cookie. Requires user confirmation.","input_schema":{"type":"object","properties":{"name":{"type":"string"},"value":{"type":"string"},"domain":{"type":"string"},"path":{"type":"string","description":"Cookie path (default /)"},"secure":{"type":"boolean","description":"Secure flag (default true)"},"httpOnly":{"type":"boolean","description":"HttpOnly flag (default false)"}},"required":["name","value","domain"]}},
+  {"type":"function","name":"cookie_delete","description":"Delete a cookie by name and domain","input_schema":{"type":"object","properties":{"name":{"type":"string"},"domain":{"type":"string"}},"required":["name","domain"]}},
+
+  // --- Network ---
+  {"type":"function","name":"network_capture","description":"Capture network requests for a duration. Returns URLs, methods, status codes, and timing.","input_schema":{"type":"object","properties":{"duration":{"type":"number","description":"Capture duration in seconds (default 5)"},"filter":{"type":"string","description":"Optional URL regex filter"}}}},
 
   // --- Recording ---
-  {"type":"function","name":"record_start","description":"Start recording browser interactions (captures periodic screenshots)","input_schema":{"type":"object","properties":{}},"function":{"name":"record_start","description":"Start recording","parameters":{"type":"object","properties":{}}}},
-  {"type":"function","name":"record_stop","description":"Stop recording and get all captured frames as a summary","input_schema":{"type":"object","properties":{}},"function":{"name":"record_stop","description":"Stop recording","parameters":{"type":"object","properties":{}}}}
+  {"type":"function","name":"record_start","description":"Start recording browser interactions (captures periodic screenshots)","input_schema":{"type":"object","properties":{}}},
+  {"type":"function","name":"record_stop","description":"Stop recording and get all captured frames as a summary","input_schema":{"type":"object","properties":{}}}
 ];
 
 const SYSTEM_PROMPT = `You control a web browser via DevTools Protocol. Use tools to complete tasks.
@@ -83,6 +92,7 @@ let recordInterval = null;
 let userResponse = null;
 let userResponseResolve = null;
 let taskTabGroupId = null;
+let abortController = null;
 
 // --- CONTEXT MENU ---
 chrome.runtime.onInstalled.addListener(() => {
@@ -108,7 +118,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     runTask(msg.task, msg.taskId, msg.model, msg.images);
     sendResponse({ success: true });
   }
-  else if (msg.type === 'stop_task') { shouldStop = true; sendResponse({ success: true }); }
+  else if (msg.type === 'stop_task') { shouldStop = true; abortController?.abort(); sendResponse({ success: true }); }
   else if (msg.type === 'get_status') { sendResponse({ running }); }
   else if (msg.type === 'user_response') {
     userResponse = msg.text;
@@ -216,14 +226,44 @@ async function attachDebugger(tabId) {
   // Store handler ref for cleanup
   debugTabId = tabId;
   debugLogHandler = logHandler;
+
+  // Register detach recovery handler
+  const detachedHandler = (source, method, params) => {
+    if (method === 'Debugger.detached' && source.tabId === tabId) {
+      handleDebuggerDetached(source, params);
+    }
+  };
+  chrome.debugger.onEvent.addListener(detachedHandler);
+  debugDetachedHandler = detachedHandler;
 }
 
 let debugLogHandler = null;
+let debugDetachedHandler = null;
+
+// Handle unexpected debugger detachment and try to recover
+async function handleDebuggerDetached(source, reason) {
+  // Only recover if we're in the middle of a task and this is our debug tab
+  if (running && source.tabId === debugTabId) {
+    console.log('Debugger detached unexpectedly, attempting to re-attach...', reason);
+    try {
+      // Wait a bit before re-attaching
+      await sleep(500);
+      await attachDebugger(source.tabId);
+      console.log('Successfully re-attached debugger');
+    } catch (e) {
+      console.error('Failed to re-attach debugger:', e);
+    }
+  }
+}
 
 async function detachDebugger() {
   if (debugLogHandler) {
     chrome.debugger.onEvent.removeListener(debugLogHandler);
     debugLogHandler = null;
+  }
+  if (debugDetachedHandler) {
+    chrome.debugger.onEvent.removeListener(debugDetachedHandler);
+    debugDetachedHandler = null;
   }
   if (debugTabId) {
     try { await chrome.debugger.detach({ tabId: debugTabId }); } catch {}
@@ -329,6 +369,7 @@ async function runTask(task, taskId, modelOverride, images) {
   }
 
   currentTaskTabId = tab.id;
+  abortController = new AbortController();
 
   try { await attachDebugger(tab.id); }
   catch (e) {
@@ -350,8 +391,9 @@ async function runTask(task, taskId, modelOverride, images) {
 
   for (let i = 0; i < 40 && !shouldStop; i++) {
     broadcast({ type: 'thinking', taskId });
+    broadcast({ type: 'progress', step: i + 1, maxSteps: 40, taskId });
     try {
-      const response = await callAPI(endpoint, authToken, model, sysPrompt, messages, TOOLS);
+      const response = await callAPI(endpoint, authToken, model, sysPrompt, messages, TOOLS, abortController?.signal);
       if (shouldStop) break;
 
       const content = response.content;
@@ -420,7 +462,7 @@ async function executeTool(tabId, tool, params) {
     switch (tool) {
       // === Navigation & Page ===
       case 'navigate': {
-        if (!isUrlSafe(params.url)) return { text: `Blocked navigation to unsafe URL: ${params.url}` };
+        if (!(await isUrlSafe(params.url))) return { text: `Blocked navigation to unsafe URL: ${params.url}` };
         await cdp(tabId, 'Page.navigate', { url: params.url });
         await new Promise(resolve => {
           const timeout = setTimeout(resolve, 8000);
@@ -500,6 +542,22 @@ async function executeTool(tabId, tool, params) {
         if (filtered.length === 0) return { text: 'No console logs found.' };
         const output = filtered.slice(-50).map(l => `[${l.type.toUpperCase()}] ${l.text}`).join('\n');
         return { text: output };
+      }
+
+      case 'performance_metrics': {
+        const metrics = await cdp(tabId, 'Performance.getMetrics');
+        const fcp = metrics.find(m => m.name === 'FirstContentfulPaint');
+        const lcp = metrics.find(m => m.name === 'LargestContentfulPaint');
+        const domNodes = await cdp(tabId, 'DOM.getDocument', {}, { depth: 0 });
+        const jsHeap = await cdp(tabId, 'Runtime.getHeapUsage');
+        const result = {
+          firstContentfulPaint: fcp?.value || 'N/A',
+          largestContentfulPaint: lcp?.value || 'N/A',
+          domNodes: domNodes?.root?.nodeId ? 'Available' : 'N/A',
+          jsHeapUsed: jsHeap?.usedSize || 'N/A',
+          jsHeapTotal: jsHeap?.totalSize || 'N/A'
+        };
+        return { text: JSON.stringify(result, null, 2) };
       }
 
       // === Interaction ===
@@ -636,6 +694,39 @@ async function executeTool(tabId, tool, params) {
         return { text: `Dragged from (${Math.round(sx)},${Math.round(sy)}) to (${Math.round(tx)},${Math.round(ty)})` };
       }
 
+      case 'form_fill': {
+        const fields = params.fields || {};
+        const results = [];
+        for (const [selector, value] of Object.entries(fields)) {
+          const { result } = await cdp(tabId, 'Runtime.evaluate', {
+            expression: `((sel, val) => {
+              const el = document.querySelector(sel);
+              if (!el) return { success: false, error: 'Not found' };
+              el.focus();
+              if (el.tagName === 'SELECT') {
+                el.value = val;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              } else if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = Boolean(val);
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              } else {
+                el.value = '';
+                el.value = val;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              return { success: true };
+            })(${jsStr(selector)}, ${jsStr(String(value))})`,
+            returnByValue: true
+          });
+          if (result?.value?.success) {
+            results.push(`${selector}: filled`);
+          } else {
+            results.push(`${selector}: ${result?.value?.error || 'failed'}`);
+          }
+        }
+        return { text: results.join('\n') };
+      }
+
       // === Advanced ===
       case 'evaluate_js': {
         const codePreview = params.code.length > 200 ? params.code.substring(0, 200) + '...' : params.code;
@@ -661,6 +752,30 @@ async function executeTool(tabId, tool, params) {
           mobile: false
         });
         return { text: `Viewport set to ${params.width}x${params.height}` };
+      }
+
+      case 'viewport_presets': {
+        const presets = {
+          'iphone-se': { width: 375, height: 667, deviceScaleFactor: 2, mobile: true },
+          'iphone-14': { width: 390, height: 844, deviceScaleFactor: 3, mobile: true },
+          'ipad': { width: 768, height: 1024, deviceScaleFactor: 2, mobile: true },
+          'pixel-7': { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true },
+          'desktop-1080': { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false },
+          'desktop-4k': { width: 3840, height: 2160, deviceScaleFactor: 1, mobile: false }
+        };
+        const preset = presets[params.device];
+        if (!preset) return { text: `Unknown preset: ${params.device}` };
+        await cdp(tabId, 'Emulation.setDeviceMetricsOverride', preset);
+        return { text: `Viewport set to ${params.device} preset (${preset.width}x${preset.height})` };
+      }
+
+      case 'clipboard_read': {
+        const result = await cdp(tabId, 'Runtime.evaluate', {
+          expression: 'navigator.clipboard.readText().catch(() => "[Empty or denied]")',
+          awaitPromise: true,
+          returnByValue: true
+        });
+        return { text: result?.value || 'Unable to read clipboard' };
       }
 
       case 'wait': {
@@ -742,7 +857,7 @@ async function executeTool(tabId, tool, params) {
 
       // === Downloads ===
       case 'download': {
-        if (!isUrlSafe(params.url)) return { text: `Blocked download from unsafe URL: ${params.url}` };
+        if (!(await isUrlSafe(params.url))) return { text: `Blocked download from unsafe URL: ${params.url}` };
         let filename = params.filename;
         if (filename) {
           filename = filename.replace(/[/\\:*?"<>|]/g, '_').split('/').pop().split('\\').pop();
@@ -769,6 +884,71 @@ async function executeTool(tabId, tool, params) {
           return `${c.name}=${isSensitive ? '[REDACTED]' : c.value.substring(0, 50)}`;
         }).join('\n');
         return { text: list || 'No cookies found' };
+      }
+
+      case 'cookie_set': {
+        const approved = await confirmWithUser(`The agent wants to set cookie:\n${params.name}=${params.value}\nDomain: ${params.domain}\n\nAllow?`);
+        if (!approved) return { text: 'User denied cookie modification.' };
+        await chrome.cookies.set({
+          url: `https://${params.domain}`,
+          name: params.name,
+          value: params.value,
+          domain: params.domain,
+          path: params.path || '/',
+          secure: params.secure !== undefined ? params.secure : true,
+          httpOnly: params.httpOnly || false
+        });
+        return { text: `Cookie set: ${params.name}` };
+      }
+
+      case 'cookie_delete': {
+        const approved = await confirmWithUser(`The agent wants to delete cookie:\n${params.name} from ${params.domain}\n\nAllow?`);
+        if (!approved) return { text: 'User denied cookie deletion.' };
+        const result = await chrome.cookies.remove({
+          url: `https://${params.domain}`,
+          name: params.name
+        });
+        return { text: result ? `Cookie deleted: ${params.name}` : `Cookie not found: ${params.name}` };
+      }
+
+      // === Network ===
+      case 'network_capture': {
+        const duration = params.duration || 5;
+        const filter = params.filter ? new RegExp(params.filter, 'i') : null;
+        await cdp(tabId, 'Network.enable');
+        const requests = [];
+        const networkHandler = (source, method, params) => {
+          if (source.tabId !== tabId) return;
+          if (method === 'Network.requestWillBeSent') {
+            const url = params.request?.url;
+            if (url && (!filter || filter.test(url))) {
+              requests.push({
+                url,
+                method: params.request?.method,
+                timestamp: params.timestamp,
+                type: params.type,
+                requestId: params.requestId
+              });
+            }
+          } else if (method === 'Network.loadingFinished') {
+            const req = requests.find(r => r.requestId === params.requestId);
+            if (req) {
+              req.finished = true;
+              req.encodedDataLength = params.encodedDataLength;
+              req.timing = params.timestamp - req.timestamp;
+            }
+          } else if (method === 'Network.loadingFailed') {
+            const req = requests.find(r => r.requestId === params.requestId);
+            if (req) {
+              req.failed = true;
+              req.errorText = params.errorText;
+            }
+          }
+        };
+        chrome.debugger.onEvent.addListener(networkHandler);
+        await sleep(duration * 1000);
+        chrome.debugger.onEvent.removeListener(networkHandler);
+        return { text: JSON.stringify(requests.slice(0, 100), null, 2) };
       }
 
       // === Recording ===
@@ -811,14 +991,44 @@ async function executeTool(tabId, tool, params) {
 
 // --- API ---
 
-async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': authToken, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model, max_tokens: 4096, system: systemPrompt, messages, tools })
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).substring(0, 300)}`);
-  return await res.json();
+async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools, signal = null) {
+  const maxRetries = 3;
+  let delay = 1000; // Start with 1 second
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Check for abort before each attempt
+      if (signal?.aborted) throw new Error('Request aborted');
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': authToken, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model, max_tokens: 4096, system: systemPrompt, messages, tools }),
+        signal
+      });
+
+      if (res.ok) return await res.json();
+
+      // Retry on 429 (rate limit) or 503 (server error)
+      if ((res.status === 429 || res.status === 503) && attempt < maxRetries - 1) {
+        await sleep(delay);
+        delay *= 2; // Exponential backoff: 1s, 2s, 4s
+        continue;
+      }
+
+      throw new Error(`API ${res.status}: ${(await res.text()).substring(0, 300)}`);
+    } catch (err) {
+      // If aborted, propagate immediately
+      if (err.name === 'AbortError' || err.message === 'Request aborted') throw new Error('Request aborted');
+      // If it's a network error and we have retries left, retry
+      if (attempt < maxRetries - 1 && (err.name === 'TypeError' || err.message?.includes('fetch'))) {
+        await sleep(delay);
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 // --- HELPERS ---
@@ -833,14 +1043,18 @@ function jsStr(value) {
 }
 
 // URL safety check — blocks dangerous protocols and internal IPs
-function isUrlSafe(url) {
+async function isUrlSafe(url) {
   try {
     const parsed = new URL(url);
     const blocked = ['javascript:', 'file:', 'chrome:', 'chrome-extension:', 'data:', 'blob:'];
     if (blocked.includes(parsed.protocol)) return false;
     const h = parsed.hostname;
-    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(h)) return false;
-    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return false;
+    // Check devMode setting for localhost/private IP access
+    const config = await getConfig();
+    if (!config.devMode) {
+      if (['localhost', '127.0.0.1', '0.0.0.0'].includes(h)) return false;
+      if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return false;
+    }
     return true;
   } catch { return false; }
 }
@@ -853,5 +1067,6 @@ async function confirmWithUser(question) {
     setTimeout(() => resolve('no'), 60000);
   });
   const r = response.toLowerCase().trim();
-  return r.startsWith('s') || r.startsWith('y') || r === 'ok';
+  const affirmative = ['sí', 'si', 'yes', 'yeah', 'yep', 'y', 'ok', 'okay', 'allow', 'permitir', 'aceptar', 'proceed', 'continue', '1', 'true', 'sure', 'alright', 'do it', 'go ahead'];
+  return affirmative.some(a => r === a || r.startsWith(a) || a.startsWith(r));
 }
