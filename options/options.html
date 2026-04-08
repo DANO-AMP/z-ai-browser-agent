@@ -129,6 +129,28 @@
       </div>
     </section>
 
+    <!-- Task Templates -->
+    <section class="card">
+      <div class="card-header-row">
+        <h2 class="card-header">Task Templates</h2>
+      </div>
+      <div class="field">
+        <label for="templateTaskInput">Task</label>
+        <textarea id="templateTaskInput" rows="2" placeholder="Describe a task to save as template..."></textarea>
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
+        <div style="flex:1">
+          <label for="templateNameInput">Name</label>
+          <input type="text" id="templateNameInput" placeholder="My template" />
+        </div>
+        <button class="btn-primary" id="addTemplateBtn" style="margin-bottom:0;height:36px;white-space:nowrap;">Save Template</button>
+      </div>
+      <div class="sched-divider"></div>
+      <div class="sched-list" id="templateListOptions">
+        <div class="sched-empty">No templates yet</div>
+      </div>
+    </section>
+
     <!-- Advanced -->
     <details class="card">
       <summary class="card-header-toggle">

@@ -257,3 +257,101 @@ clearHistoryOptionsBtn.addEventListener('click', () => {
 
 // Load history on page open
 loadTaskHistory();
+
+// --- TASK TEMPLATES ---
+
+const templateTaskInput = document.getElementById('templateTaskInput');
+const templateNameInput = document.getElementById('templateNameInput');
+const addTemplateBtn = document.getElementById('addTemplateBtn');
+const templateListOptions = document.getElementById('templateListOptions');
+
+addTemplateBtn.addEventListener('click', () => {
+  const task = templateTaskInput.value.trim();
+  const name = templateNameInput.value.trim() || task.substring(0, 30);
+  if (!task) return;
+
+  chrome.storage.local.get(['taskTemplates'], (data) => {
+    const templates = data.taskTemplates || [];
+    templates.unshift({ name, task, createdAt: Date.now() });
+    if (templates.length > 50) templates.pop();
+    chrome.storage.local.set({ taskTemplates: templates });
+    templateTaskInput.value = '';
+    templateNameInput.value = '';
+    showStatus('Template saved!', true);
+    loadTemplates();
+  });
+});
+
+function loadTemplates() {
+  chrome.storage.local.get(['taskTemplates'], (data) => {
+    const templates = data.taskTemplates || [];
+    templateListOptions.textContent = '';
+    if (templates.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'sched-empty';
+      empty.textContent = 'No templates yet';
+      templateListOptions.appendChild(empty);
+      return;
+    }
+    templates.forEach((tmpl, index) => {
+      const item = document.createElement('div');
+      item.className = 'sched-item';
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'sched-item-task';
+      nameDiv.textContent = tmpl.name;
+
+      const taskDiv = document.createElement('div');
+      taskDiv.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4;';
+      taskDiv.textContent = tmpl.task;
+
+      const footer = document.createElement('div');
+      footer.className = 'sched-item-footer';
+
+      const meta = document.createElement('div');
+      meta.className = 'sched-item-meta';
+      const date = document.createElement('span');
+      date.textContent = new Date(tmpl.createdAt).toLocaleDateString();
+      meta.appendChild(date);
+
+      const actions = document.createElement('div');
+      actions.className = 'sched-item-actions';
+
+      const run = document.createElement('button');
+      run.className = 'sched-item-run';
+      run.textContent = 'Run now';
+      run.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'run_task', task: tmpl.task, taskId: Date.now(), model: null });
+        run.textContent = 'Running...';
+        run.disabled = true;
+        setTimeout(() => { run.textContent = 'Run now'; run.disabled = false; }, 3000);
+      });
+
+      const del = document.createElement('button');
+      del.className = 'sched-item-delete';
+      del.textContent = 'Delete';
+      del.addEventListener('click', () => {
+        if (confirm('Delete this template?')) {
+          chrome.storage.local.get(['taskTemplates'], (data) => {
+            const templates = data.taskTemplates || [];
+            templates.splice(index, 1);
+            chrome.storage.local.set({ taskTemplates: templates });
+            loadTemplates();
+          });
+        }
+      });
+
+      actions.appendChild(run);
+      actions.appendChild(del);
+      footer.appendChild(meta);
+      footer.appendChild(actions);
+      item.appendChild(nameDiv);
+      item.appendChild(taskDiv);
+      item.appendChild(footer);
+      templateListOptions.appendChild(item);
+    });
+  });
+}
+
+// Load templates on page open
+loadTemplates();
