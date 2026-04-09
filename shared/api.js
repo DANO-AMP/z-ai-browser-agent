@@ -39,5 +39,7 @@ async function improvePrompt(endpoint, authToken, model, text) {
   return improved.trim();
 }
 
-// Export for global scope (loaded via <script> tags)
-window.improvePrompt = improvePrompt;
+// Export — works in both browser pages (window) and service worker (importScripts)
+if (typeof window !== 'undefined') {
+  window.improvePrompt = improvePrompt;
+}

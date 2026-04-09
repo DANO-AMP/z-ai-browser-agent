@@ -1,6 +1,20 @@
 // Z AI Browser Agent - Background Service Worker
 // Uses Z.AI's Anthropic-compatible API + Chrome DevTools Protocol (CDP)
 
+importScripts('../shared/utils.js');
+
+// --- CONSTANTS ---
+const MAX_AGENT_STEPS = 40;
+const MAX_PAGE_TEXT = 12000;
+const MAX_ELEMENT_TEXT = 8000;
+const MAX_HTML_LENGTH = 15000;
+const MAX_ELEMENT_HTML = 10000;
+const MAX_TOOL_RETRIES = 3;
+const MAX_CONSOLE_LOGS = 200;
+const MAX_WAIT_MS = 5000;
+const NAVIGATION_TIMEOUT_MS = 8000;
+const RECORD_INTERVAL_MS = 2000;
+
 const TOOLS = [
   // --- Navigation & Page ---
   { "type": "function", "name": "navigate", "description": "Go to a URL", "input_schema": { "type": "object", "properties": { "url": { "type": "string" } }, "required": ["url"] } },
@@ -92,7 +106,12 @@ let recordInterval = null;
 let askUserResolve = null;
 let confirmResolve = null;
 let pauseResolve = null;       // Resolves when user resumes a paused task
+let userResponse = null;
+const _pendingResolves = new Map(); // id → resolve callback
+let _resolveId = 0;
 let taskTabGroupId = null;
+let taskTabIds = new Set();       // all tabs in the current task group
+let taskWindowId = null;          // window the task runs in
 let abortController = null;
 let activeTask = null;
 // followUpQueue is now persisted in chrome.storage.local (see queueTask / dequeueNext)
@@ -397,11 +416,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   else if (msg.type === 'user_response') {
+    userResponse = msg.text;
+    // Route by resolveId (new _pendingResolves path)
+    const id = msg.resolveId;
+    if (id !== undefined && _pendingResolves.has(id)) {
+      _pendingResolves.get(id)(msg.text);
+      _pendingResolves.delete(id);
+    }
+    // Legacy resolve path (askUserResolve / confirmResolve)
     if (!activeTask) {
       sendResponse({ success: false, error: 'No active task waiting for input' });
       return true;
     }
-    // Route response to the correct pending promise
     if (msg.confirm) {
       if (confirmResolve) { confirmResolve(msg.text); confirmResolve = null; }
     } else {
@@ -429,17 +455,46 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true;
 });
 
-chrome.action.onClicked.addListener((tab) => {
-  chrome.sidePanel.open({ tabId: tab.id });
+// --- TAB SWITCH: close sidepanel when leaving task tabs ---
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  if (!running || !taskWindowId) return;
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.windowId !== taskWindowId) return; // different window, ignore
+    if (!taskTabIds.has(tabId)) {
+      // Switched to a non-task tab — close sidepanel
+      chrome.sidePanel.close({ windowId: taskWindowId }).catch(() => {});
+    }
+  } catch {}
 });
 
-// Detach debugger if tab closes
+// Task-group-aware extension icon click
+chrome.action.onClicked.addListener(async (tab) => {
+  if (running && taskTabIds.size > 0) {
+    if (taskTabIds.has(tab.id)) {
+      // Clicked on a task tab — reopen sidepanel
+      chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+    } else {
+      // Clicked on non-task tab while task running — switch to last task tab
+      const lastTaskTabId = currentTaskTabId || [...taskTabIds][taskTabIds.size - 1];
+      try {
+        await chrome.tabs.update(lastTaskTabId, { active: true });
+        chrome.sidePanel.open({ tabId: lastTaskTabId }).catch(() => {});
+      } catch {}
+    }
+  } else {
+    chrome.sidePanel.open({ tabId: tab.id });
+  }
+});
+
+// Detach debugger if tab closes + clean up task tab tracking
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === debugTabId) { debugTabId = null; }
   if (expectedClosedTaskTabIds.has(tabId)) {
     expectedClosedTaskTabIds.delete(tabId);
     return;
   }
+  taskTabIds.delete(tabId);
   if (activeTask?.tabId === tabId) {
     stopActiveTask('tab_closed');
   }
@@ -662,7 +717,7 @@ async function attachDebugger(tabId) {
       const type = params.type; // log, warning, error, info
       const args = (params.args || []).map(a => a.value || a.description || '').join(' ');
       consoleLogs.push({ type, text: args, time: Date.now() });
-      if (consoleLogs.length > 200) consoleLogs.shift();
+      if (consoleLogs.length > MAX_CONSOLE_LOGS) consoleLogs.shift();
     } else if (method === 'Runtime.exceptionThrown') {
       const desc = params.exceptionDetails?.text || params.exceptionDetails?.exception?.description || 'Exception';
       consoleLogs.push({ type: 'error', text: desc, time: Date.now() });
@@ -738,12 +793,15 @@ async function showTaskEffects(tabId) {
   chrome.action.setBadgeText({ text: 'AI' });
   chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
 
-  // 2. Tab group
+  // 2. Tab group + task tab tracking
   try {
     const groupId = await chrome.tabs.group({ tabIds: [tabId] });
     await chrome.tabGroups.update(groupId, { title: 'Z AI', color: 'purple', collapsed: false });
     taskTabGroupId = groupId;
-  } catch { }
+    taskTabIds.add(tabId);
+    const tab = await chrome.tabs.get(tabId);
+    taskWindowId = tab.windowId;
+  } catch {}
 
   // 3. Page overlay glow border + floating indicator (safe DOM construction, no innerHTML)
   try {
@@ -776,11 +834,16 @@ async function hideTaskEffects(tabId) {
   // 1. Clear badge
   chrome.action.setBadgeText({ text: '' });
 
-  // 2. Ungroup tab
-  if (taskTabGroupId !== null) {
-    try { await chrome.tabs.ungroup([tabId]); } catch { }
-    taskTabGroupId = null;
+  // 2. Dissolve tab group and clear tracking state
+  if (taskTabIds.size > 0) {
+    try {
+      const tabIds = [...taskTabIds];
+      await chrome.tabs.ungroup(tabIds);
+    } catch {}
   }
+  taskTabIds.clear();
+  taskTabGroupId = null;
+  taskWindowId = null;
 
   // 3. Remove page overlay
   try {
@@ -1090,16 +1153,16 @@ async function executeTool(tabId, tool, params) {
 
       case 'get_page': {
         const expr = params.selector
-          ? `document.querySelector(${jsStr(params.selector)})?.innerText?.substring(0,8000) || 'Element not found'`
-          : `document.body.innerText.substring(0, 12000)`;
+          ? `document.querySelector(${jsStr(params.selector)})?.innerText?.substring(0,${MAX_ELEMENT_TEXT}) || 'Element not found'`
+          : `document.body.innerText.substring(0, ${MAX_PAGE_TEXT})`;
         const { result } = await cdp(tabId, 'Runtime.evaluate', { expression: expr, returnByValue: true });
         return { text: result?.value || 'Empty page' };
       }
 
       case 'get_html': {
         const expr = params.selector
-          ? `document.querySelector(${jsStr(params.selector)})?.outerHTML?.substring(0,10000) || 'Element not found'`
-          : `document.body.innerHTML.substring(0, 15000)`;
+          ? `document.querySelector(${jsStr(params.selector)})?.outerHTML?.substring(0,${MAX_ELEMENT_HTML}) || 'Element not found'`
+          : `document.body.innerHTML.substring(0, ${MAX_HTML_LENGTH})`;
         const { result } = await cdp(tabId, 'Runtime.evaluate', { expression: expr, returnByValue: true });
         return { text: result?.value || 'Empty' };
       }
@@ -1406,22 +1469,20 @@ async function executeTool(tabId, tool, params) {
       }
 
       case 'wait': {
-        await sleep(Math.min(params.ms || 1000, 5000));
+        await sleep(Math.min(params.ms || 1000, MAX_WAIT_MS));
         return { text: `Waited ${params.ms || 1000}ms` };
       }
 
       case 'ask_user': {
         // Send question + options to side panel and wait for response
-        broadcast({ type: 'ask_user', question: params.question, options: params.options || [], ...getActiveTaskMessageMeta() });
+        const rid = ++_resolveId;
+        broadcast({ type: 'ask_user', question: params.question, options: params.options || [], ...getActiveTaskMessageMeta(), resolveId: rid });
         const response = await new Promise((resolve) => {
-          askUserResolve = resolve;
-          // Timeout after 5 min — only resolve if this promise is still the active one
-          setTimeout(() => {
-            if (askUserResolve === resolve) {
-              askUserResolve = null;
-              resolve('Sin respuesta (timeout)');
-            }
-          }, 300000);
+          _pendingResolves.set(rid, resolve);
+          // Timeout after 5 minutes
+          setTimeout(() => { _pendingResolves.delete(rid); resolve('Sin respuesta (timeout)'); }, 300000);
+        });
+        askUserResolve = null;
         });
         return { text: `User responded: ${response}` };
       }
@@ -1443,6 +1504,14 @@ async function executeTool(tabId, tool, params) {
         await chrome.tabs.update(target.id, { active: true });
         await sleep(250);
         await setTaskTabContext(target.id);
+        // Auto-join task group if active
+        if (taskTabGroupId && running && !taskTabIds.has(target.id)) {
+          try {
+            await chrome.tabs.group({ tabIds: [target.id], groupId: taskTabGroupId });
+            taskTabIds.add(target.id);
+          } catch {}
+        }
+
         return { text: `Switched to tab ${params.index}: ${target.title}` };
       }
 
@@ -1454,6 +1523,14 @@ async function executeTool(tabId, tool, params) {
         const newTab = await chrome.tabs.create({ url });
         if (params.url) await sleep(2000);
         await setTaskTabContext(newTab.id);
+        // Auto-join task group if active
+        if (taskTabGroupId && running) {
+          try {
+            await chrome.tabs.group({ tabIds: [newTab.id], groupId: taskTabGroupId });
+            taskTabIds.add(newTab.id);
+          } catch {}
+        }
+
         return { text: `Opened new tab: ${params.url || 'blank'}` };
       }
 
@@ -1512,7 +1589,7 @@ async function executeTool(tabId, tool, params) {
 
       // === Downloads ===
       case 'download': {
-        if (!(await isUrlSafe(params.url))) return { text: `Blocked download from unsafe URL: ${params.url}` };
+        if (!(await isUrlSafeAsync(params.url))) return { text: `Blocked download from unsafe URL: ${params.url}` };
         let filename = params.filename;
         if (filename) {
           filename = filename.replace(/[/\\:*?"<>|]/g, '_').split('/').pop().split('\\').pop();
@@ -1569,10 +1646,17 @@ async function executeTool(tabId, tool, params) {
       // === Network ===
       case 'network_capture': {
         const duration = Math.min(params.duration || 5, 30);
-        // Use the user's filter as a literal substring (safer) unless it looks like a regex (/pattern/)
         let filter = null;
         if (params.filter) {
-          try { filter = new RegExp(params.filter, 'i'); } catch { filter = new RegExp(params.filter.replace(/[.*+?{}()[\]\\^$|]/g, '\\$&'), 'i'); }
+          try {
+            // Limit pattern length to prevent ReDoS
+            const pattern = String(params.filter).substring(0, 200);
+            filter = new RegExp(pattern, 'i');
+            // Quick sanity test — reject patterns that cause excessive backtracking
+            filter.test('');
+          } catch {
+            return { text: `Invalid regex pattern: ${params.filter}` };
+          }
         }
         await cdp(tabId, 'Network.enable');
         const requests = [];
@@ -1634,8 +1718,8 @@ async function executeTool(tabId, tool, params) {
             const { data } = await cdp(recordTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 20 });
             recordFrames.push(data);
             broadcast({ type: 'record_frame', count: recordFrames.length, ...getActiveTaskMessageMeta() });
-          } catch { }
-        }, 2000);
+          } catch {}
+        }, RECORD_INTERVAL_MS);
         return { text: 'Recording started. Capturing a frame every 2 seconds.' };
       }
 
@@ -1665,7 +1749,7 @@ async function executeTool(tabId, tool, params) {
 // --- API ---
 
 async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools, signal = null) {
-  const maxRetries = 3;
+  const maxRetries = MAX_TOOL_RETRIES;
   let delay = 1000; // Start with 1 second
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -1741,21 +1825,30 @@ async function isUrlSafe(url) {
   } catch { return false; }
 }
 
+// Async wrapper for isUrlSafeAsync — reads devMode from storage first
+async function isUrlSafeAsync(url) {
+  const config = await getConfig();
+  return isUrlSafe(url, config.devMode);
+}
+}
+
 // User confirmation helper for sensitive operations
 async function confirmWithUser(question) {
   if (activeTask && activeTask.state !== TASK_STATES.STOPPING) {
     transitionTaskState(TASK_STATES.WAITING_USER, { waitingFor: 'confirm' });
   }
-  broadcast({ type: 'ask_user', question, confirm: true, ...getActiveTaskMessageMeta() });
+  const rid = ++_resolveId;
+  broadcast({ type: 'ask_user', question, confirm: true, ...getActiveTaskMessageMeta(), resolveId: rid });
   const response = await new Promise((resolve) => {
-    confirmResolve = resolve;
-    setTimeout(() => resolve('no'), 60000);
+    _pendingResolves.set(rid, resolve);
+    setTimeout(() => { _pendingResolves.delete(rid); resolve('no'); }, 60000);
   });
   confirmResolve = null;
   if (activeTask && activeTask.state !== TASK_STATES.STOPPING) {
     transitionTaskState(TASK_STATES.RUNNING, { waitingFor: null });
   }
   const r = response.toLowerCase().trim();
-  const affirmative = ['yes', 'y', 'ok', 'okay', 'allow', 'proceed', 'continue', 'sure', 'sí', 'si', 'permitir', 'aceptar', 'do it', 'go ahead'];
+  const affirmative = ['yes', 'yeah', 'yep', 'y', 'ok', 'okay', 'allow', 'proceed', 'continue', 'sure', 'do it', 'go ahead',
+                       'sí', 'si', 'permitir', 'aceptar'];
   return affirmative.includes(r);
 }

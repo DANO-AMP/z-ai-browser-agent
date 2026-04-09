@@ -466,9 +466,40 @@ chrome.runtime.onMessage.addListener((msg) => {
       const exportTask = conv?.currentTaskText || currentTaskText;
       const exportModel = conv?.currentModel || currentModel || modelSelect.value;
       if (targetTabId === currentTabId) removeThinking();
-      const exportBtnHtml = '<button class="export-btn" title="Export result" data-text="' + escapeHtml(msg.text).replace(/"/g, '&quot;') + '" data-task="' + escapeHtml(exportTask).replace(/"/g, '&quot;') + '" data-model="' + escapeHtml(exportModel).replace(/"/g, '&quot;') + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
       const renderedMarkdown = addCodeCopyButtons(renderMarkdown(msg.text));
-      appendMessageToConversation(targetTabId, 'response', `<div class="label">Result ${exportBtnHtml}</div>${renderedMarkdown}`);
+      appendMessageToConversation(targetTabId, 'response', '<div class="label">Result</div>' + renderedMarkdown);
+      // Build export button via DOM (safe — no untrusted content in innerHTML)
+      const labelEl = messagesEl.querySelector('.msg:last-child .label');
+      if (labelEl) {
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'export-btn';
+        exportBtn.title = 'Export result';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '12'); svg.setAttribute('height', '12');
+        svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '2');
+        svg.textContent = ''; // placeholder — use path strings
+        const pathD = 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4';
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('d', pathD);
+        svg.appendChild(pathEl);
+        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        polyline.setAttribute('points', '7 10 12 15 17 10');
+        svg.appendChild(polyline);
+        const lineEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        lineEl.setAttribute('x1', '12'); lineEl.setAttribute('y1', '15');
+        lineEl.setAttribute('x2', '12'); lineEl.setAttribute('y2', '3');
+        svg.appendChild(lineEl);
+        exportBtn.appendChild(svg);
+        exportBtn.addEventListener('click', () => {
+          const filename = `task-${Date.now()}.md`;
+          const content = `# Task\n${exportTask}\n\n# Model\n${exportModel}\n\n# Date\n${new Date().toLocaleString()}\n\n# Result\n${msg.text}\n`;
+          const blob = new Blob([content], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          chrome.downloads.download({ url, filename, saveAs: false }, () => URL.revokeObjectURL(url));
+        });
+        labelEl.appendChild(exportBtn);
+      }
       break;
     }
 
@@ -553,6 +584,7 @@ chrome.runtime.onMessage.addListener((msg) => {
     // --- ask_user: Agent needs human input ---
     case 'ask_user': {
       const targetTabId = resolveMessageTabId(msg);
+      const resolveId = msg.resolveId;
       if (targetTabId === currentTabId) {
         removeThinking();
         setStatus('running', 'Waiting for input...');
@@ -575,6 +607,38 @@ chrome.runtime.onMessage.addListener((msg) => {
         '</div>' +
         '</div>'
       );
+      // Bind option buttons
+      document.querySelectorAll('.ask-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.textContent;
+          chrome.runtime.sendMessage({ type: 'user_response', text: val, resolveId });
+          addMsg('tool-result ok', escapeHtml(val));
+          // Disable all options and input
+          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; b.classList.add('selected-off'); });
+          btn.classList.remove('selected-off');
+          btn.classList.add('selected');
+          const inp = document.getElementById('askUserInput');
+          const btn2 = document.getElementById('askUserBtn');
+          if (inp) inp.disabled = true;
+          if (btn2) btn2.disabled = true;
+        });
+      });
+      const askInput = document.getElementById('askUserInput');
+      const askBtn = document.getElementById('askUserBtn');
+      const sendResponse = () => {
+        const val = askInput.value.trim();
+        if (val) {
+          chrome.runtime.sendMessage({ type: 'user_response', text: val, resolveId });
+          addMsg('tool-result ok', escapeHtml(val));
+          askInput.disabled = true;
+          askBtn.disabled = true;
+          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; });
+        }
+      };
+      askBtn.addEventListener('click', sendResponse);
+      askInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendResponse();
+      });
       break;
     }
 
@@ -812,10 +876,4 @@ function toggleButtons(isRunning) {
   }
 }
 
-function showStatus(text) {
-  const statusText = statusEl.querySelector('.status-text');
-  if (statusText) statusText.textContent = text;
-  setTimeout(() => { if (statusText) statusText.textContent = 'Ready'; }, 2000);
-}
-
-// escapeHtml and renderMarkdown now in shared/utils.js
+// escapeHtml, renderMarkdown, and sanitizeHTML now in shared/utils.js

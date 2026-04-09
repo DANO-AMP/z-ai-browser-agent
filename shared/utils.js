@@ -23,8 +23,27 @@ function formatInterval(min) {
  * @returns {string} HTML-escaped text
  */
 function escapeHtml(text) {
-  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-  return String(text).replace(/[&<>"]/g, c => map[c]);
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(text).replace(/[&<>"']/g, c => map[c]);
+}
+
+/**
+ * Sanitize HTML to prevent XSS while allowing safe formatting tags.
+ * Strips script, iframe, object, embed, form, and event handlers.
+ * @param {string} html - HTML string to sanitize
+ * @returns {string} Sanitized HTML
+ */
+function sanitizeHTML(html) {
+  // Remove dangerous tags completely
+  let clean = html.replace(/<(script|iframe|object|embed|applet|form|input|textarea|select|button|link|meta|base)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  clean = clean.replace(/<(script|iframe|object|embed|applet|form|link|meta|base)[^>]*\/?>/gi, '');
+  // Remove event handlers (on*)
+  clean = clean.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // Remove javascript: URLs
+  clean = clean.replace(/href\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi, 'href="#"');
+  // Remove srcdoc attributes
+  clean = clean.replace(/srcdoc\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+  return clean;
 }
 
 /**
@@ -137,6 +156,7 @@ function isUrlSafe(url, devMode = false) {
 const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
 _globalObj.formatInterval = formatInterval;
 _globalObj.escapeHtml = escapeHtml;
+_globalObj.sanitizeHTML = sanitizeHTML;
 _globalObj.renderMarkdown = renderMarkdown;
 _globalObj.jsStr = jsStr;
 _globalObj.isUrlSafe = isUrlSafe;
