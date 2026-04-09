@@ -177,7 +177,9 @@ function ensureConversation(tabId) {
   return conversations[tabId];
 }
 
-function saveConversation(tabId) {
+let _saveTimeout = null;
+
+function saveConversation(tabId, immediate = false) {
   if (!tabId) return;
   const clone = messagesEl.cloneNode(true);
   const welc = clone.querySelector('.welcome');
@@ -188,6 +190,18 @@ function saveConversation(tabId) {
   conv.currentTaskText = currentTaskText;
   conv.currentModel = currentModel;
   conv.lastTaskInput = lastTaskInput;
+
+  // Debounced persist to storage
+  const doPersist = () => {
+    chrome.storage.local.set({ conversations }).catch(() => {});
+  };
+  if (immediate) {
+    clearTimeout(_saveTimeout);
+    doPersist();
+  } else {
+    clearTimeout(_saveTimeout);
+    _saveTimeout = setTimeout(doPersist, 500);
+  }
 }
 
 function restoreConversationState(tabId) {
@@ -249,12 +263,23 @@ function loadConversation(tabId) {
   if (conv && conv.html) {
     messagesEl.innerHTML = conv.html;
     restoreConversationState(tabId);
+    rebindExampleBtns();
+    bindCodeCopyButtons();
     messagesEl.scrollTop = messagesEl.scrollHeight;
   } else {
     showWelcome();
     restoreConversationState(tabId);
   }
 }
+
+// Load persisted conversations on startup
+chrome.storage.local.get(['conversations'], (data) => {
+  if (data.conversations && typeof data.conversations === 'object') {
+    conversations = data.conversations;
+    // Reload current tab conversation if available
+    if (currentTabId) loadConversation(currentTabId);
+  }
+});
 
 function showWelcome() {
   messagesEl.innerHTML = originalWelcomeHTML;
@@ -280,6 +305,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (runningTaskTabId === tabId) {
     runningTaskTabId = null;
   }
+  chrome.storage.local.set({ conversations }).catch(() => {});
 });
 
 // --- Model Selector ---
@@ -710,6 +736,7 @@ function clearMessages() {
   showWelcome();
   if (currentTabId) {
     conversations[currentTabId] = { html: '', currentTaskText: '', currentModel: '', lastTaskInput: '' };
+    chrome.storage.local.set({ conversations }).catch(() => {});
   }
   currentTaskText = '';
   currentModel = modelSelect.value;
