@@ -857,6 +857,30 @@ textarea:disabled { opacity: 0.4; }
 .stop-btn:hover { opacity: 0.9; }
 .stop-btn:active { transform: scale(0.95); }
 
+/* Pause/Resume button — amber pill that appears alongside stop during task */
+.pause-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(245,158,11,0.4);
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pause-btn:hover {
+  background: rgba(245,158,11,0.22);
+  border-color: rgba(245,158,11,0.7);
+}
+.pause-btn:active { transform: scale(0.96); }
+
 .input-hint {
   text-align: center;
   font-size: 10px;
@@ -868,6 +892,31 @@ textarea:disabled { opacity: 0.4; }
 }
 
 .hidden { display: none; }
+
+/* Queue badge — appears in status bar when tasks are waiting */
+.queue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 20px;
+  padding: 2px 8px;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  transition: all var(--transition-fast);
+  margin-left: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.queue-badge:hover {
+  background: rgba(245,158,11,0.2);
+  border-color: rgba(245,158,11,0.5);
+}
 
 /* === EXPORT BUTTON === */
 .export-btn {

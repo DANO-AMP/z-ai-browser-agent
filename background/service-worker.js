@@ -91,9 +91,14 @@ let recordFrames = [];
 let recordInterval = null;
 let askUserResolve = null;
 let confirmResolve = null;
+let pauseResolve = null;       // Resolves when user resumes a paused task
 let taskTabGroupId = null;
 let abortController = null;
 let activeTask = null;
+// followUpQueue is now persisted in chrome.storage.local (see queueTask / dequeueNext)
+// In-memory reference kept for fast "is there a next task?" check without storage round-trip
+let _queueDirty = false;  // true when we know storage queue has items
+let sidePanelPort = null;      // Long-lived port to the side panel (heartbeat)
 const expectedDetachTabIds = new Set();
 const expectedClosedTaskTabIds = new Set();
 
@@ -101,6 +106,7 @@ const TASK_STATES = {
   IDLE: 'idle',
   STARTING: 'starting',
   RUNNING: 'running',
+  PAUSED: 'paused',
   WAITING_USER: 'waiting_user',
   STOPPING: 'stopping',
   COMPLETED: 'completed',
@@ -191,16 +197,37 @@ function getTaskStatus() {
 function stopActiveTask(reason = 'user') {
   if (!activeTask) return false;
   transitionTaskState(TASK_STATES.STOPPING, { shouldStop: true, stopReason: reason });
-  if (askUserResolve) {
-    askUserResolve('Task stopped');
-    askUserResolve = null;
-  }
-  if (confirmResolve) {
-    confirmResolve('no');
-    confirmResolve = null;
-  }
+  if (askUserResolve) { askUserResolve('Task stopped'); askUserResolve = null; }
+  if (confirmResolve)  { confirmResolve('no');           confirmResolve = null;  }
+  if (pauseResolve)    { pauseResolve();                 pauseResolve = null;    }
   activeTask.abortController?.abort();
+  // Discard the persistent queue so no task runs after a manual stop
+  clearQueue().catch(() => {});
+  _queueDirty = false;
   return true;
+}
+
+// Pause the running task at the next safe point (between tool calls)
+function pauseActiveTask() {
+  if (!activeTask || activeTask.state !== TASK_STATES.RUNNING) return false;
+  transitionTaskState(TASK_STATES.PAUSED, { paused: true });
+  broadcast({ type: 'task_paused', ...getActiveTaskMessageMeta() });
+  return true;
+}
+
+// Resume a paused task
+function resumeActiveTask() {
+  if (!activeTask || activeTask.state !== TASK_STATES.PAUSED) return false;
+  transitionTaskState(TASK_STATES.RUNNING, { paused: false });
+  if (pauseResolve) { pauseResolve(); pauseResolve = null; }
+  broadcast({ type: 'task_resumed', ...getActiveTaskMessageMeta() });
+  return true;
+}
+
+// Wait while task is paused (called inside the agent loop)
+async function waitWhilePaused(taskCtx) {
+  if (activeTask?.state !== TASK_STATES.PAUSED) return;
+  await new Promise(resolve => { pauseResolve = resolve; });
 }
 
 function getActiveTaskMessageMeta() {
@@ -296,6 +323,35 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // --- MESSAGE HANDLING ---
 
+// Long-lived port connection (side panel) — enables heartbeat and push-style events
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== 'z-ai-panel') return;
+
+  // Validate origin — only accept connections from our own extension pages
+  if (port.sender?.id !== chrome.runtime.id) {
+    console.warn('[Z AI] Blocked unauthorized port connection');
+    port.disconnect();
+    return;
+  }
+
+  sidePanelPort = port;
+
+  port.onMessage.addListener(msg => {
+    if (msg.type === 'heartbeat') {
+      port.postMessage({ type: 'heartbeat_ack' });
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    sidePanelPort = null;
+    // If the panel closes while a task is running, stop the task gracefully
+    if (activeTask && ![TASK_STATES.COMPLETED, TASK_STATES.FAILED, TASK_STATES.STOPPING].includes(activeTask.state)) {
+      console.log('[Z AI] Side panel disconnected — stopping active task');
+      stopActiveTask('panel_closed');
+    }
+  });
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'run_task') {
     if (activeTask) {
@@ -305,8 +361,41 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     runTask(msg.task, msg.taskId, msg.model, msg.images, msg.tabId || null);
     sendResponse({ success: true });
   }
-  else if (msg.type === 'stop_task') { sendResponse({ success: stopActiveTask('user') }); }
-  else if (msg.type === 'get_status') { sendResponse(getTaskStatus()); }
+  else if (msg.type === 'stop_task')   { sendResponse({ success: stopActiveTask('user') }); }
+  else if (msg.type === 'pause_task')  { sendResponse({ success: pauseActiveTask() }); }
+  else if (msg.type === 'resume_task') { sendResponse({ success: resumeActiveTask() }); }
+  else if (msg.type === 'get_status')  { sendResponse(getTaskStatus()); }
+  else if (msg.type === 'follow_up_task') {
+    // Queue a follow-up task to run after the current one completes (or start immediately if idle)
+    if (!activeTask || [TASK_STATES.COMPLETED, TASK_STATES.FAILED].includes(activeTask.state)) {
+      runTask(msg.task, msg.taskId, msg.model, msg.images, msg.tabId || null);
+    } else {
+      // Persist in storage so the queue survives a SW restart
+      queueTask({ task: msg.task, taskId: msg.taskId, model: msg.model, images: msg.images, tabId: msg.tabId || null })
+        .then(queue => {
+          _queueDirty = true;
+          broadcast({ type: 'follow_up_queued', position: queue.length, ...getActiveTaskMessageMeta() });
+          broadcast({ type: 'queue_updated', queue: queue.map(q => ({ id: q.id, task: q.task, status: q.status })) });
+        });
+    }
+    sendResponse({ success: true });
+  }
+  else if (msg.type === 'get_queue') {
+    getQueue().then(queue => sendResponse({ queue }));
+    return true;
+  }
+  else if (msg.type === 'clear_queue') {
+    clearQueue().then(() => { _queueDirty = false; sendResponse({ success: true }); });
+    return true;
+  }
+  else if (msg.type === 'remove_queue_item') {
+    removeQueueItem(msg.id).then(queue => {
+      _queueDirty = queue.length > 0;
+      broadcast({ type: 'queue_updated', queue: queue.map(q => ({ id: q.id, task: q.task, status: q.status })) });
+      sendResponse({ success: true, queue });
+    });
+    return true;
+  }
   else if (msg.type === 'user_response') {
     if (!activeTask) {
       sendResponse({ success: false, error: 'No active task waiting for input' });
@@ -356,14 +445,102 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 });
 
-// --- SCHEDULED TASKS (chrome.alarms) ---
+// =============================================================================
+// SCHEDULED TASKS + PERSISTENT QUEUE + KEEP-ALIVE
+// =============================================================================
+
+// --- Keep-Alive Alarm (Phase 1) ---
+// Chrome MV3 kills the SW after ~30s idle. A sub-minute alarm forces it to wake
+// every 24 seconds, keeping long-running task chains alive all day.
+const KEEPALIVE_ALARM  = 'z-ai-keepalive';
+const SCHEDULED_PREFIX = 'z-ai-task-';
+const QUEUE_KEY        = 'z_ai_task_queue';
+const CHECKPOINT_KEY   = 'z_ai_checkpoint';
+
+// --- Persistent Queue helpers (Phase 2) ---
+
+async function getQueue() {
+  const data = await chrome.storage.local.get(QUEUE_KEY);
+  return data[QUEUE_KEY] || [];
+}
+
+async function queueTask(item) {
+  const queue = await getQueue();
+  queue.push({
+    id: item.taskId || `q-${Date.now()}`,
+    task:    item.task,
+    model:   item.model   || null,
+    images:  item.images  || null,
+    tabId:   item.tabId   || null,
+    status:  'pending',   // pending | running | done | failed
+    retries: 0,
+    maxRetries: item.maxRetries ?? 2,
+    addedAt: Date.now(),
+  });
+  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+  return queue;
+}
+
+async function dequeueNext() {
+  const queue = await getQueue();
+  const next = queue.find(q => q.status === 'pending');
+  if (!next) return null;
+  // Mark as running so parallel wakeups don't double-execute
+  next.status = 'running';
+  next.startedAt = Date.now();
+  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+  return next;
+}
+
+async function markQueueItemDone(id, failed = false) {
+  const queue = await getQueue();
+  const item = queue.find(q => q.id === id);
+  if (item) {
+    item.status = failed ? 'failed' : 'done';
+    item.finishedAt = Date.now();
+    // Prune items older than 24h to keep storage lean
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const pruned = queue.filter(q => q.addedAt > cutoff || q.status === 'pending');
+    await chrome.storage.local.set({ [QUEUE_KEY]: pruned });
+    return pruned;
+  }
+  return queue;
+}
+
+async function removeQueueItem(id) {
+  const queue = (await getQueue()).filter(q => q.id !== id);
+  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+  return queue;
+}
+
+async function clearQueue() {
+  await chrome.storage.local.set({ [QUEUE_KEY]: [] });
+}
+
+// --- Checkpoint helpers (Phase 2) ---
+// Saved before each task run, cleared when task finishes.
+// Used by the watchdog to detect tasks interrupted by an SW restart.
+
+async function saveCheckpoint(data) {
+  await chrome.storage.local.set({ [CHECKPOINT_KEY]: { ...data, savedAt: Date.now() } });
+}
+
+async function clearCheckpoint() {
+  await chrome.storage.local.remove(CHECKPOINT_KEY);
+}
+
+async function getCheckpoint() {
+  const data = await chrome.storage.local.get(CHECKPOINT_KEY);
+  return data[CHECKPOINT_KEY] || null;
+}
+
+// --- Scheduled tasks ---
 
 async function scheduleTask(task, intervalMinutes) {
   const tasks = (await chrome.storage.local.get(['scheduledTasks'])).scheduledTasks || [];
-  const id = `z-ai-task-${Date.now()}`;
+  const id = `${SCHEDULED_PREFIX}${Date.now()}`;
   tasks.push({ task, intervalMinutes, alarmName: id, createdAt: Date.now() });
   await chrome.storage.local.set({ scheduledTasks: tasks });
-  // delayInMinutes ensures the first fire waits the full interval
   chrome.alarms.create(id, { delayInMinutes: intervalMinutes, periodInMinutes: intervalMinutes });
 }
 
@@ -376,32 +553,92 @@ async function removeScheduledTask(index) {
   }
 }
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name.startsWith('z-ai-task-')) {
-    chrome.storage.local.get(['scheduledTasks'], (data) => {
-      const tasks = data.scheduledTasks || [];
-      const scheduled = tasks.find(t => t.alarmName === alarm.name);
-      if (!scheduled) return;
-      if (running) {
-        // Task is running — reschedule this alarm to retry in 1 minute
-        chrome.alarms.create(alarm.name, { delayInMinutes: 1, periodInMinutes: scheduled.intervalMinutes });
-        return;
+// --- Unified Alarm Handler ---
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  // 1. Keep-alive ping — just waking the SW is enough
+  if (alarm.name === KEEPALIVE_ALARM) {
+    // If there are pending queued tasks and nothing is running, process them
+    if (!activeTask || [TASK_STATES.COMPLETED, TASK_STATES.FAILED, TASK_STATES.IDLE].includes(activeTask?.state)) {
+      const next = _queueDirty ? await dequeueNext() : null;
+      if (next) {
+        console.log('[Z AI] Keep-alive: executing queued task', next.id);
+        runTask(next.task, next.id, next.model, next.images, next.tabId, next);
       }
-      runTask(scheduled.task, Date.now(), null, null);
-    });
+    }
+    return;
+  }
+
+  // 2. Scheduled (cron) task
+  if (alarm.name.startsWith(SCHEDULED_PREFIX)) {
+    const data = await chrome.storage.local.get(['scheduledTasks']);
+    const tasks = data.scheduledTasks || [];
+    const scheduled = tasks.find(t => t.alarmName === alarm.name);
+    if (!scheduled) return;
+    if (running) {
+      // Agent busy — push to persistent queue so it runs when free
+      await queueTask({ task: scheduled.task, maxRetries: 0 });
+      _queueDirty = true;
+      return;
+    }
+    runTask(scheduled.task, Date.now(), null, null);
   }
 });
 
-// Restore alarms on service worker restart
-chrome.storage.local.get(['scheduledTasks'], async (data) => {
-  const tasks = data.scheduledTasks || [];
-  // Clear any stale alarms first
-  await chrome.alarms.clearAll();
-  for (const t of tasks) {
-    // Re-create with delayInMinutes so they don't all fire immediately on restart
-    chrome.alarms.create(t.alarmName, { delayInMinutes: t.intervalMinutes, periodInMinutes: t.intervalMinutes });
+// --- Startup: restore alarms + watchdog (runs every SW boot) ---
+(async () => {
+  // 1. Ensure keep-alive alarm exists (survives clearAll only if we recreate it)
+  const existing = await chrome.alarms.get(KEEPALIVE_ALARM);
+  if (!existing) {
+    chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.4 }); // ~24s
   }
-});
+
+  // 2. Restore scheduled task alarms without clearing the keepalive
+  const data = await chrome.storage.local.get(['scheduledTasks']);
+  const tasks = data.scheduledTasks || [];
+  for (const t of tasks) {
+    const alarm = await chrome.alarms.get(t.alarmName);
+    if (!alarm) {
+      // Alarm was lost (e.g. machine restart) — recreate with original interval
+      chrome.alarms.create(t.alarmName, { delayInMinutes: t.intervalMinutes, periodInMinutes: t.intervalMinutes });
+    }
+  }
+
+  // 3. Watchdog: detect tasks interrupted by an SW kill
+  const checkpoint = await getCheckpoint();
+  if (checkpoint) {
+    const age = Date.now() - checkpoint.savedAt;
+    const STALE_MS = 90 * 1000; // 90s — if task didn't finish in 90s after SW woke, it was killed
+    if (age > STALE_MS) {
+      console.warn('[Z AI] Watchdog: interrupted task detected', checkpoint);
+      const queueItem = checkpoint.queueItem;
+      if (queueItem && queueItem.retries < queueItem.maxRetries) {
+        // Re-queue with incremented retry count
+        await clearCheckpoint();
+        queueItem.retries = (queueItem.retries || 0) + 1;
+        queueItem.status = 'pending';
+        await queueTask(queueItem);
+        _queueDirty = true;
+        console.log('[Z AI] Watchdog: re-queued task for retry', queueItem.id, 'attempt', queueItem.retries);
+      } else {
+        // Max retries reached or one-shot task — clear checkpoint and mark failed
+        await clearCheckpoint();
+        if (queueItem) await markQueueItemDone(queueItem.id, true);
+        console.warn('[Z AI] Watchdog: task exceeded max retries, marked failed', checkpoint.taskId);
+      }
+    }
+  }
+
+  // 4. If there are pending items in the queue and nothing running, kick off
+  const queue = await getQueue();
+  const pendingCount = queue.filter(q => q.status === 'pending').length;
+  if (pendingCount > 0) {
+    _queueDirty = true;
+    // Reset any items stuck in 'running' state (from interrupted SW) back to 'pending'
+    const fixed = queue.map(q => q.status === 'running' ? { ...q, status: 'pending' } : q);
+    await chrome.storage.local.set({ [QUEUE_KEY]: fixed });
+    console.log('[Z AI] Startup: found', pendingCount, 'pending task(s) in queue — will process on next keepalive');
+  }
+})();
 
 // --- DEBUGGER LIFECYCLE ---
 
@@ -584,12 +821,14 @@ async function setTaskTabContext(nextTabId, options = {}) {
 
 // --- AGENT LOOP ---
 
-async function runTask(task, taskId, modelOverride, images, preferredTabId = null) {
+async function runTask(task, taskId, modelOverride, images, preferredTabId = null, queueItem = null) {
   if (activeTask) { broadcast({ type: 'error', text: 'A task is already running', taskId }); return; }
   const taskCtx = setActiveTask(createTaskContext(task, taskId, modelOverride, images));
   updateActiveTask({ preferredTabId });
   consoleLogs = [];
   let lastResponseText = '';
+  // Save checkpoint so watchdog can detect this task if the SW is killed
+  await saveCheckpoint({ taskId: taskCtx.id, task, startedAt: Date.now(), queueItem });
   try {
     const { authToken, apiEndpoint, modelName, systemPrompt } = await getConfig();
     const endpoint = apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
@@ -660,6 +899,10 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
           updateActiveTask({ tabId: currentTaskTabId || activeTabId, toolRuns: taskCtx.toolRuns + 1 });
           broadcast({ type: 'tool_result', tool: tb.name, result, taskId: taskCtx.id, tabId: taskCtx.tabId });
 
+          // Honour pause requests — wait here until resumed or stopped
+          await waitWhilePaused(taskCtx);
+          if (taskCtx.shouldStop) break;
+
           const toolContent = [];
           if (result.image) {
             toolContent.push({
@@ -709,6 +952,17 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
     }
     await detachDebugger();
 
+    // Clear checkpoint — task finished (success, fail, or stop)
+    await clearCheckpoint();
+
+    // Mark the queue item done/failed
+    if (queueItem) {
+      const failed = activeTask?.state === TASK_STATES.FAILED;
+      const updatedQueue = await markQueueItemDone(queueItem.id, failed);
+      _queueDirty = updatedQueue.some(q => q.status === 'pending');
+      broadcast({ type: 'queue_updated', queue: updatedQueue.map(q => ({ id: q.id, task: q.task, status: q.status })) });
+    }
+
     saveTaskHistory(task, lastResponseText);
     broadcast({
       type: 'task_end',
@@ -719,6 +973,20 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
       state: activeTask?.state || taskCtx.state
     });
     clearActiveTask();
+
+    // Process next item from the persistent queue
+    if (_queueDirty && !taskCtx.shouldStop) {
+      const next = await dequeueNext();
+      if (next) {
+        // Small delay so task_end is processed by the UI first
+        await sleep(300);
+        broadcast({ type: 'queue_updated', queue: (await getQueue()).map(q => ({ id: q.id, task: q.task, status: q.status })) });
+        runTask(next.task, next.id, next.model, next.images, next.tabId, next);
+        return; // runTask takes over; don't fall through
+      } else {
+        _queueDirty = false;
+      }
+    }
   }
 }
 
@@ -776,18 +1044,29 @@ async function executeTool(tabId, tool, params) {
       // === Navigation & Page ===
       case 'navigate': {
         if (!(await isUrlSafe(params.url))) return { text: `Blocked navigation to unsafe URL: ${params.url}` };
+        // Enable lifecycle events so we can wait for networkIdle (more reliable than loadEventFired)
+        try { await cdp(tabId, 'Page.setLifecycleEventsEnabled', { enabled: true }); } catch { }
         await cdp(tabId, 'Page.navigate', { url: params.url });
         await new Promise(resolve => {
-          const timeout = setTimeout(resolve, 8000);
-          const handler = (source, method) => {
-            if (source.tabId === tabId && method === 'Page.loadEventFired') {
+          const TIMEOUT_MS = 10000;
+          const timer = setTimeout(resolve, TIMEOUT_MS);
+          const handler = (source, method, evtParams) => {
+            if (source.tabId !== tabId) return;
+            // Prefer networkIdle (page + network settled), fall back to loadEventFired
+            if (method === 'Page.lifecycleEvent' && evtParams?.name === 'networkIdle') {
               chrome.debugger.onEvent.removeListener(handler);
-              clearTimeout(timeout);
-              setTimeout(resolve, 500);
+              clearTimeout(timer);
+              resolve();
+            } else if (method === 'Page.loadEventFired') {
+              // loadEventFired as safety net — wait a short additional settle period
+              chrome.debugger.onEvent.removeListener(handler);
+              clearTimeout(timer);
+              setTimeout(resolve, 300);
             }
           };
           chrome.debugger.onEvent.addListener(handler);
-          setTimeout(() => chrome.debugger.onEvent.removeListener(handler), 8000);
+          // Ensure listener is cleaned up even if we time out
+          setTimeout(() => chrome.debugger.onEvent.removeListener(handler), TIMEOUT_MS + 500);
         });
         return { text: `Navigated to ${params.url}` };
       }
@@ -881,21 +1160,50 @@ async function executeTool(tabId, tool, params) {
 
       // === Interaction ===
       case 'click': {
-        const { result } = await cdp(tabId, 'Runtime.evaluate', {
+        // Step 1: scroll element into view and get its nodeId
+        const { result: nodeRes } = await cdp(tabId, 'Runtime.evaluate', {
           expression: `((sel) => {
             const el = document.querySelector(sel);
             if (!el) return null;
             el.scrollIntoView({behavior:'instant', block:'center'});
-            const r = el.getBoundingClientRect();
-            return {x: r.x + r.width/2, y: r.y + r.height/2, w: r.width, h: r.height};
+            return true;
           })(${jsStr(params.selector)})`,
           returnByValue: true
         });
-        if (!result || !result.value) return { text: `Element not found: ${params.selector}` };
-        const { x, y } = result.value;
-        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
-        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
-        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+        if (!nodeRes || !nodeRes.value) return { text: `Element not found: ${params.selector}` };
+
+        // Step 2: resolve the DOM node to get nodeId for getContentQuads
+        let x, y;
+        try {
+          const { object } = await cdp(tabId, 'Runtime.evaluate', {
+            expression: `document.querySelector(${jsStr(params.selector)})`,
+            returnByValue: false
+          });
+          const { node } = await cdp(tabId, 'DOM.describeNode', { objectId: object.objectId });
+          const { quads } = await cdp(tabId, 'DOM.getContentQuads', { nodeId: node.nodeId });
+          if (quads && quads.length > 0) {
+            // quad = [x1,y1, x2,y2, x3,y3, x4,y4] — use center of first quad
+            const q = quads[0];
+            x = (q[0] + q[2] + q[4] + q[6]) / 4;
+            y = (q[1] + q[3] + q[5] + q[7]) / 4;
+          }
+        } catch { }
+
+        // Fallback to getBoundingClientRect if getContentQuads failed
+        if (x === undefined) {
+          const { result: fallback } = await cdp(tabId, 'Runtime.evaluate', {
+            expression: `((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r ? {x: r.x+r.width/2, y: r.y+r.height/2} : null; })(${jsStr(params.selector)})`,
+            returnByValue: true
+          });
+          if (!fallback?.value) return { text: `Could not get position for: ${params.selector}` };
+          x = fallback.value.x;
+          y = fallback.value.y;
+        }
+
+        // Dispatch full trusted mouse event sequence
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' });
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, modifiers: 0 });
+        await cdp(tabId, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, modifiers: 0 });
         return { text: `Clicked at (${Math.round(x)}, ${Math.round(y)})` };
       }
 
@@ -1107,10 +1415,14 @@ async function executeTool(tabId, tool, params) {
         broadcast({ type: 'ask_user', question: params.question, options: params.options || [], ...getActiveTaskMessageMeta() });
         const response = await new Promise((resolve) => {
           askUserResolve = resolve;
-          // Timeout after 5 minutes
-          setTimeout(() => resolve('Sin respuesta (timeout)'), 300000);
+          // Timeout after 5 min — only resolve if this promise is still the active one
+          setTimeout(() => {
+            if (askUserResolve === resolve) {
+              askUserResolve = null;
+              resolve('Sin respuesta (timeout)');
+            }
+          }, 300000);
         });
-        askUserResolve = null;
         return { text: `User responded: ${response}` };
       }
 
@@ -1257,40 +1569,45 @@ async function executeTool(tabId, tool, params) {
       // === Network ===
       case 'network_capture': {
         const duration = Math.min(params.duration || 5, 30);
-        const filter = params.filter ? (() => { try { return new RegExp(params.filter.replace(/[.*+?{}()[\]\\]/g, '\\$&'), 'i'); } catch { return null; } })() : null;
+        // Use the user's filter as a literal substring (safer) unless it looks like a regex (/pattern/)
+        let filter = null;
+        if (params.filter) {
+          try { filter = new RegExp(params.filter, 'i'); } catch { filter = new RegExp(params.filter.replace(/[.*+?{}()[\]\\^$|]/g, '\\$&'), 'i'); }
+        }
         await cdp(tabId, 'Network.enable');
         const requests = [];
-        const networkHandler = (source, method, params) => {
+        // Shadow outer "params" with a locally-named variable to avoid collision
+        const networkHandler = (source, method, evtParams) => {
           if (source.tabId !== tabId) return;
           if (method === 'Network.requestWillBeSent') {
-            const url = params.request?.url;
+            const url = evtParams.request?.url;
             if (url && (!filter || filter.test(url))) {
               requests.push({
                 url,
-                method: params.request?.method,
-                timestamp: params.wallTime || params.timestamp,
-                type: params.type,
-                requestId: params.requestId
+                method: evtParams.request?.method,
+                timestamp: evtParams.wallTime || evtParams.timestamp,
+                type: evtParams.type,
+                requestId: evtParams.requestId
               });
             }
           } else if (method === 'Network.responseReceived') {
-            const req = requests.find(r => r.requestId === params.requestId);
-            if (req && params.response) {
-              req.statusCode = params.response.status;
-              req.mimeType = params.response.mimeType;
+            const req = requests.find(r => r.requestId === evtParams.requestId);
+            if (req && evtParams.response) {
+              req.statusCode = evtParams.response.status;
+              req.mimeType = evtParams.response.mimeType;
             }
           } else if (method === 'Network.loadingFinished') {
-            const req = requests.find(r => r.requestId === params.requestId);
+            const req = requests.find(r => r.requestId === evtParams.requestId);
             if (req) {
               req.finished = true;
-              req.encodedDataLength = params.encodedDataLength;
-              req.state = params.encodedDataLength ? 'complete' : 'unknown';
+              req.encodedDataLength = evtParams.encodedDataLength;
+              req.state = evtParams.encodedDataLength ? 'complete' : 'unknown';
             }
           } else if (method === 'Network.loadingFailed') {
-            const req = requests.find(r => r.requestId === params.requestId);
+            const req = requests.find(r => r.requestId === evtParams.requestId);
             if (req) {
               req.failed = true;
-              req.errorText = params.errorText;
+              req.errorText = evtParams.errorText;
               req.state = 'failed';
             }
           }
@@ -1298,6 +1615,8 @@ async function executeTool(tabId, tool, params) {
         chrome.debugger.onEvent.addListener(networkHandler);
         await sleep(duration * 1000);
         chrome.debugger.onEvent.removeListener(networkHandler);
+        // Disable Network domain to avoid leaving it enabled unnecessarily
+        try { await cdp(tabId, 'Network.disable'); } catch { }
         return { text: JSON.stringify(requests.slice(0, 100), null, 2) };
       }
 
@@ -1306,11 +1625,13 @@ async function executeTool(tabId, tool, params) {
         recording = true;
         recordFrames = [];
         if (recordInterval) clearInterval(recordInterval);
-        // Take a frame every 2 seconds
+        // Capture the active tabId at start time so frames always go to the right tab
+        // even if the agent switches tabs during recording
+        const recordTabId = tabId || debugTabId;
         recordInterval = setInterval(async () => {
-          if (!recording || !debugTabId) return;
+          if (!recording || !recordTabId) return;
           try {
-            const { data } = await cdp(debugTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 20 });
+            const { data } = await cdp(recordTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 20 });
             recordFrames.push(data);
             broadcast({ type: 'record_frame', count: recordFrames.length, ...getActiveTaskMessageMeta() });
           } catch { }
@@ -1387,14 +1708,23 @@ async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools
 
 async function getConfig() { return await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName', 'systemPrompt', 'devMode']); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => { }); }
+
+// broadcast: prefers long-lived port (more reliable), falls back to sendMessage
+function broadcast(msg) {
+  if (sidePanelPort) {
+    try { sidePanelPort.postMessage(msg); return; } catch { sidePanelPort = null; }
+  }
+  chrome.runtime.sendMessage(msg).catch(() => { });
+}
 
 // Safe JS string encoding — prevents injection in Runtime.evaluate expressions
+// Note: shared/utils.js has a sync version for browser contexts; this SW version is the authoritative one.
 function jsStr(value) {
   return JSON.stringify(String(value));
 }
 
-// URL safety check — blocks dangerous protocols and internal IPs
+// URL safety check — async version (reads devMode from storage).
+// The sync version in shared/utils.js is for non-SW contexts.
 async function isUrlSafe(url) {
   try {
     const parsed = new URL(url);

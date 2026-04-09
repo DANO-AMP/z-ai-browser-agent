@@ -5,6 +5,7 @@ const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
 const stopBtn = document.getElementById('stopBtn');
+const pauseBtn = document.getElementById('pauseBtn');
 const clearBtn = document.getElementById('clearBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const statusEl = document.getElementById('status');
@@ -21,6 +22,8 @@ let autoScrollEnabled = true; // Auto-scroll toggle state
 let lastTaskInput = ''; // Store last input for Arrow Up shortcut
 let runningTaskId = null;
 let runningTaskTabId = null;
+let taskIsPaused = false;
+let queueCount = 0; // Number of pending tasks in the persistent queue
 const taskTabMap = {};
 
 // Sound notification base64 (short beep)
@@ -92,6 +95,59 @@ function renderPreviews() {
 const originalWelcomeHTML = document.querySelector('.welcome').outerHTML;
 loadModel();
 updateTabInfo();
+
+// --- Long-lived Port Connection (heartbeat) ---
+let panelPort = null;
+
+function connectPort() {
+  try {
+    panelPort = chrome.runtime.connect({ name: 'z-ai-panel' });
+    panelPort.onMessage.addListener(msg => {
+      // heartbeat_ack is silent — just confirms SW is alive
+      if (msg.type === 'heartbeat_ack') return;
+    });
+    panelPort.onDisconnect.addListener(() => {
+      panelPort = null;
+      // Reconnect after a short delay (SW may have restarted)
+      setTimeout(connectPort, 1000);
+    });
+    // Send heartbeat every 20 seconds to keep SW alive and connection healthy
+    setInterval(() => { try { panelPort?.postMessage({ type: 'heartbeat' }); } catch { } }, 20000);
+  } catch { }
+}
+connectPort();
+
+// Show/hide a small badge on the status bar showing how many tasks are queued
+function updateQueueBadge() {
+  let badge = document.getElementById('queueBadge');
+  if (queueCount > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'queueBadge';
+      badge.className = 'queue-badge';
+      badge.title = 'Tasks queued - click to clear';
+      badge.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'clear_queue' }, () => {
+          queueCount = 0;
+          updateQueueBadge();
+        });
+      });
+      const statusBar = document.querySelector('.status-bar');
+      if (statusBar) statusBar.appendChild(badge);
+    }
+    badge.textContent = queueCount + " queued";
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+// On startup, sync queue count from SW (survives SW restarts with pending tasks)
+chrome.runtime.sendMessage({ type: 'get_queue' }, function(res) {
+  if (chrome.runtime.lastError || !res || !res.queue) return;
+  const pending = res.queue.filter(function(q) { return q.status === 'pending'; }).length;
+  queueCount = pending;
+  updateQueueBadge();
+});
 
 // --- Tab Tracking ---
 
@@ -242,6 +298,7 @@ modelSelect.addEventListener('change', () => {
 
 sendBtn.addEventListener('click', startTask);
 stopBtn.addEventListener('click', stopTask);
+pauseBtn?.addEventListener('click', togglePause);
 clearBtn.addEventListener('click', clearMessages);
 settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
@@ -395,7 +452,9 @@ chrome.runtime.onMessage.addListener((msg) => {
       const resultStr = typeof msg.result === 'string'
         ? msg.result
         : JSON.stringify(msg.result, null, 2);
-      const isErr = resultStr.includes('"error"') || resultStr.includes('Error');
+      // Prefer the structured ok field set by normalizeToolResult in the service worker;
+      // fall back to checking for an 'Error:' prefix in the text (avoids false positives)
+      const isErr = msg.result?.ok === false || (typeof msg.result?.ok !== 'boolean' && resultStr.startsWith('Error:'));
       const truncated = resultStr.substring(0, 1000) + (resultStr.length > 1000 ? '\n...' : '');
       appendMessageToConversation(targetTabId, `tool-result ${isErr ? 'err' : 'ok'}`, escapeHtml(truncated));
       break;
@@ -449,6 +508,40 @@ chrome.runtime.onMessage.addListener((msg) => {
       if (progressContainer && targetTabId === currentTabId) progressContainer.style.display = 'none';
       // Play completion sound
       if (!msg.stopped) playCompletionSound();
+      break;
+    }
+
+    case 'task_paused': {
+      taskIsPaused = true;
+      if (resolveMessageTabId(msg) === currentTabId) {
+        setStatus('running', 'Paused');
+        if (pauseBtn) { pauseBtn.textContent = 'Resume'; pauseBtn.title = 'Resume task'; }
+      }
+      break;
+    }
+
+    case 'task_resumed': {
+      taskIsPaused = false;
+      if (resolveMessageTabId(msg) === currentTabId) {
+        setStatus('running', 'Running...');
+        if (pauseBtn) { pauseBtn.textContent = 'Pause'; pauseBtn.title = 'Pause task'; }
+      }
+      break;
+    }
+
+    case 'follow_up_queued': {
+      const targetTabId = resolveMessageTabId(msg);
+      queueCount = msg.position || queueCount;
+      updateQueueBadge();
+      appendMessageToConversation(targetTabId, 'task-end', `⏳ Queued (#${msg.position})`);
+      break;
+    }
+
+    case 'queue_updated': {
+      // Sync local queue count from the authoritative SW state
+      const pending = (msg.queue || []).filter(q => q.status === 'pending').length;
+      queueCount = pending;
+      updateQueueBadge();
       break;
     }
 
@@ -506,8 +599,12 @@ function startTask(targetTabId = currentTabId) {
 
   const nextTaskId = ++taskIdCounter;
   const images = [...pendingImages];
+
+  // If a task just completed (not running), use follow_up_task to continue in same tab context
+  const msgType = (!runningTaskId) ? 'run_task' : 'follow_up_task';
+
   chrome.runtime.sendMessage({
-    type: 'run_task',
+    type: msgType,
     task: task || 'Analyze these images',
     taskId: nextTaskId,
     model: modelSelect.value,
@@ -536,6 +633,15 @@ function stopTask() {
   });
 }
 
+function togglePause() {
+  const type = taskIsPaused ? 'resume_task' : 'pause_task';
+  chrome.runtime.sendMessage({ type }, (res) => {
+    if (chrome.runtime.lastError || !res?.success) {
+      setStatus('error', 'Could not pause/resume task');
+    }
+  });
+}
+
 function clearMessages() {
   showWelcome();
   if (currentTabId) {
@@ -544,6 +650,8 @@ function clearMessages() {
   currentTaskText = '';
   currentModel = modelSelect.value;
   lastTaskInput = '';
+  taskIsPaused = false;
+  if (pauseBtn) { pauseBtn.textContent = 'Pause'; pauseBtn.title = 'Pause task'; }
 }
 
 // --- Auto-scroll Toggle ---
@@ -695,8 +803,13 @@ function setStatus(cls, text) {
 function toggleButtons(isRunning) {
   sendBtn.classList.toggle('hidden', isRunning);
   stopBtn.classList.toggle('hidden', !isRunning);
+  if (pauseBtn) pauseBtn.classList.toggle('hidden', !isRunning);
   stopBtn.disabled = false;
   inputEl.disabled = isRunning;
+  if (!isRunning) {
+    taskIsPaused = false;
+    if (pauseBtn) { pauseBtn.textContent = 'Pause'; pauseBtn.title = 'Pause task'; }
+  }
 }
 
 function showStatus(text) {
