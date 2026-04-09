@@ -3,6 +3,7 @@ const apiEndpointInput = document.getElementById("apiEndpoint");
 const modelNameSelect = document.getElementById("modelName");
 const systemPromptInput = document.getElementById("systemPrompt");
 const soundEnabledInput = document.getElementById("soundEnabled");
+const devModeInput = document.getElementById("devMode");
 const saveBtn = document.getElementById("saveBtn");
 const testBtn = document.getElementById("testBtn");
 const statusEl = document.getElementById("status");
@@ -15,12 +16,13 @@ const DEFAULTS = {
 const alertBanner = document.getElementById("alertBanner");
 
 // Load saved settings
-chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt", "soundEnabled"], (data) => {
+chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt", "soundEnabled", "devMode"], (data) => {
   authTokenInput.value = data.authToken || "";
   apiEndpointInput.value = data.apiEndpoint || DEFAULTS.apiEndpoint;
   modelNameSelect.value = data.modelName || DEFAULTS.modelName;
   systemPromptInput.value = data.systemPrompt || "";
   soundEnabledInput.checked = data.soundEnabled !== false; // Default is enabled
+  devModeInput.checked = data.devMode || false;
   // Show warning if no API key
   if (!data.authToken) alertBanner.style.display = "flex";
 });
@@ -42,7 +44,8 @@ saveBtn.addEventListener("click", () => {
     apiEndpoint: apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint,
     modelName: modelNameSelect.value,
     systemPrompt: systemPromptInput.value.trim(),
-    soundEnabled: soundEnabledInput.checked
+    soundEnabled: soundEnabledInput.checked,
+    devMode: devModeInput.checked
   });
   showStatus("Saved!", true);
   if (authTokenInput.value.trim()) alertBanner.style.display = "none";
@@ -103,7 +106,15 @@ const improveBtn = document.getElementById("improvePromptBtn");
 
 function loadScheduledTasks() {
   chrome.runtime.sendMessage({ type: "get_scheduled" }, (res) => {
-    const tasks = res?.tasks || [];
+    if (chrome.runtime.lastError || !res) {
+      schedListEl.textContent = "";
+      const empty = document.createElement("div");
+      empty.className = "sched-empty";
+      empty.textContent = "Could not load tasks — service worker may be starting";
+      schedListEl.appendChild(empty);
+      return;
+    }
+    const tasks = res.tasks || [];
     schedListEl.textContent = "";
     if (tasks.length === 0) {
       const empty = document.createElement("div");
@@ -140,18 +151,24 @@ function loadScheduledTasks() {
       run.className = "sched-item-run";
       run.textContent = "Run now";
       run.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "run_task", task: t.task, taskId: Date.now(), model: null });
-        run.textContent = "Running...";
-        run.disabled = true;
-        setTimeout(() => { run.textContent = "Run now"; run.disabled = false; }, 3000);
+        chrome.runtime.sendMessage({ type: "run_task", task: t.task, taskId: Date.now(), model: null }, (res) => {
+          if (res?.success) {
+            run.textContent = "Running...";
+            run.disabled = true;
+            setTimeout(() => { run.textContent = "Run now"; run.disabled = false; }, 10000);
+          } else {
+            showStatus(res?.error || "Could not start task", false);
+          }
+        });
       });
 
       const del = document.createElement("button");
       del.className = "sched-item-delete";
       del.textContent = "Delete";
       del.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "remove_scheduled", index: i });
-        setTimeout(loadScheduledTasks, 200);
+        chrome.runtime.sendMessage({ type: "remove_scheduled", index: i }, () => {
+          loadScheduledTasks();
+        });
       });
 
       actions.appendChild(run);
@@ -169,9 +186,10 @@ addSchedBtn.addEventListener("click", () => {
   const task = schedTaskInput.value.trim();
   if (!task) return;
   const minutes = parseInt(schedIntervalSelect.value);
-  chrome.runtime.sendMessage({ type: "schedule_task", task, cronMinutes: minutes });
-  schedTaskInput.value = "";
-  setTimeout(loadScheduledTasks, 300);
+  chrome.runtime.sendMessage({ type: "schedule_task", task, cronMinutes: minutes }, () => {
+    schedTaskInput.value = "";
+    loadScheduledTasks();
+  });
 });
 
 // --- IMPROVE PROMPT (AI-powered) ---
@@ -321,10 +339,15 @@ function loadTemplates() {
       run.className = 'sched-item-run';
       run.textContent = 'Run now';
       run.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'run_task', task: tmpl.task, taskId: Date.now(), model: null });
-        run.textContent = 'Running...';
-        run.disabled = true;
-        setTimeout(() => { run.textContent = 'Run now'; run.disabled = false; }, 3000);
+        chrome.runtime.sendMessage({ type: 'run_task', task: tmpl.task, taskId: Date.now(), model: null }, (res) => {
+          if (res?.success) {
+            run.textContent = 'Running...';
+            run.disabled = true;
+            setTimeout(() => { run.textContent = 'Run now'; run.disabled = false; }, 10000);
+          } else {
+            showStatus(res?.error || 'Could not start task', false);
+          }
+        });
       });
 
       const del = document.createElement('button');

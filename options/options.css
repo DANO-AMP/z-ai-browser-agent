@@ -525,3 +525,93 @@ details[open] .card-header-toggle {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+
+/* =========================================
+   PREMIUM DESIGN OVERRIDES 
+   ========================================= */
+
+body {
+  font-family: var(--font-secondary);
+  background: var(--bg-primary);
+  background-image: 
+    radial-gradient(circle at -10% -10%, rgba(139, 92, 246, 0.1), transparent 40%),
+    radial-gradient(circle at 110% 110%, rgba(236, 72, 153, 0.1), transparent 40%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, .topnav-title {
+  font-family: var(--font-primary);
+}
+
+.topnav {
+  background: rgba(5, 5, 10, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+.card-header {
+  font-family: var(--font-primary);
+  letter-spacing: 1px;
+}
+
+input, select, textarea {
+  font-family: var(--font-secondary);
+  background: rgba(18, 18, 25, 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-default);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-glow);
+}
+
+.action-bar {
+  background: rgba(5, 5, 10, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-default);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  box-shadow: 0 4px 16px var(--accent-glow);
+  font-family: var(--font-primary);
+  border: none;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.btn-secondary {
+  font-family: var(--font-primary);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover {
+  background: var(--bg-glass);
+}
+
+.sched-item {
+  background: var(--bg-glass);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+.sched-item:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-2px);
+}
+.sched-item-run { font-family: var(--font-primary); }

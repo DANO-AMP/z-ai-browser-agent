@@ -3,67 +3,67 @@
 
 const TOOLS = [
   // --- Navigation & Page ---
-  {"type":"function","name":"navigate","description":"Go to a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]}},
-  {"type":"function","name":"go_back","description":"Go back in browser history","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"go_forward","description":"Go forward in browser history","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"url","description":"Get current page URL","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"get_page","description":"Read visible text of the page or a specific element","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}}},
-  {"type":"function","name":"get_html","description":"Get the HTML source of a specific element or the whole page body","input_schema":{"type":"object","properties":{"selector":{"type":"string"}}}},
-  {"type":"function","name":"get_page_title","description":"Get the current page title","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"screenshot","description":"Take a screenshot of the current page to see it visually","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"find","description":"Find elements by CSS selector, returns list with text and attributes","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
+  { "type": "function", "name": "navigate", "description": "Go to a URL", "input_schema": { "type": "object", "properties": { "url": { "type": "string" } }, "required": ["url"] } },
+  { "type": "function", "name": "go_back", "description": "Go back in browser history", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "go_forward", "description": "Go forward in browser history", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "url", "description": "Get current page URL", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "get_page", "description": "Read visible text of the page or a specific element", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" } } } },
+  { "type": "function", "name": "get_html", "description": "Get the HTML source of a specific element or the whole page body", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" } } } },
+  { "type": "function", "name": "get_page_title", "description": "Get the current page title", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "screenshot", "description": "Take a screenshot of the current page to see it visually", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "find", "description": "Find elements by CSS selector, returns list with text and attributes", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" } }, "required": ["selector"] } },
 
   // --- Console & Debugging ---
-  {"type":"function","name":"get_console","description":"Read browser console logs (errors, warnings, info). Useful for debugging web pages.","input_schema":{"type":"object","properties":{"level":{"type":"string","enum":["all","error","warning","info"],"description":"Filter by log level"}}}},
-  {"type":"function","name":"performance_metrics","description":"Get page performance metrics including FCP, LCP, DOM nodes, and JS heap size","input_schema":{"type":"object","properties":{}}},
+  { "type": "function", "name": "get_console", "description": "Read browser console logs (errors, warnings, info). Useful for debugging web pages.", "input_schema": { "type": "object", "properties": { "level": { "type": "string", "enum": ["all", "error", "warning", "info"], "description": "Filter by log level" } } } },
+  { "type": "function", "name": "performance_metrics", "description": "Get page performance metrics including FCP, LCP, DOM nodes, and JS heap size", "input_schema": { "type": "object", "properties": {} } },
 
   // --- Interaction ---
-  {"type":"function","name":"click","description":"Click element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
-  {"type":"function","name":"type_text","description":"Type text into input field","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}},
-  {"type":"function","name":"press_key","description":"Press a key (Enter, Tab, Escape, Backspace, etc)","input_schema":{"type":"object","properties":{"key":{"type":"string"}},"required":["key"]}},
-  {"type":"function","name":"hover","description":"Hover over an element by CSS selector","input_schema":{"type":"object","properties":{"selector":{"type":"string"}},"required":["selector"]}},
-  {"type":"function","name":"select_option","description":"Select an option in a dropdown/select element by its visible text","input_schema":{"type":"object","properties":{"selector":{"type":"string"},"text":{"type":"string"}},"required":["selector","text"]}},
-  {"type":"function","name":"scroll","description":"Scroll page up or down","input_schema":{"type":"object","properties":{"dir":{"type":"string","enum":["up","down"]}},"required":["dir"]}},
-  {"type":"function","name":"drag","description":"Drag an element from one position to another","input_schema":{"type":"object","properties":{"from_selector":{"type":"string"},"to_selector":{"type":"string"}},"required":["from_selector","to_selector"]}},
-  {"type":"function","name":"form_fill","description":"Fill multiple form fields at once. Provide an object mapping CSS selectors to their values.","input_schema":{"type":"object","properties":{"fields":{"type":"object","description":"Object mapping CSS selectors to values (e.g., {\"#name\":\"John\",\".email\":\"test@example.com\"})"}},"required":["fields"]}},
+  { "type": "function", "name": "click", "description": "Click element by CSS selector", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" } }, "required": ["selector"] } },
+  { "type": "function", "name": "type_text", "description": "Type text into input field", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" }, "text": { "type": "string" } }, "required": ["selector", "text"] } },
+  { "type": "function", "name": "press_key", "description": "Press a key (Enter, Tab, Escape, Backspace, etc)", "input_schema": { "type": "object", "properties": { "key": { "type": "string" } }, "required": ["key"] } },
+  { "type": "function", "name": "hover", "description": "Hover over an element by CSS selector", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" } }, "required": ["selector"] } },
+  { "type": "function", "name": "select_option", "description": "Select an option in a dropdown/select element by its visible text", "input_schema": { "type": "object", "properties": { "selector": { "type": "string" }, "text": { "type": "string" } }, "required": ["selector", "text"] } },
+  { "type": "function", "name": "scroll", "description": "Scroll page up or down", "input_schema": { "type": "object", "properties": { "dir": { "type": "string", "enum": ["up", "down"] } }, "required": ["dir"] } },
+  { "type": "function", "name": "drag", "description": "Drag an element from one position to another", "input_schema": { "type": "object", "properties": { "from_selector": { "type": "string" }, "to_selector": { "type": "string" } }, "required": ["from_selector", "to_selector"] } },
+  { "type": "function", "name": "form_fill", "description": "Fill multiple form fields at once. Provide an object mapping CSS selectors to their values.", "input_schema": { "type": "object", "properties": { "fields": { "type": "object", "description": "Object mapping CSS selectors to values (e.g., {\"#name\":\"John\",\".email\":\"test@example.com\"})" } }, "required": ["fields"] } },
 
   // --- Advanced ---
-  {"type":"function","name":"evaluate_js","description":"Execute custom JavaScript code on the page and return the result. Use for complex interactions.","input_schema":{"type":"object","properties":{"code":{"type":"string"}},"required":["code"]}},
-  {"type":"function","name":"set_viewport","description":"Change the page viewport size for responsive testing","input_schema":{"type":"object","properties":{"width":{"type":"number"},"height":{"type":"number"}},"required":["width","height"]}},
-  {"type":"function","name":"viewport_presets","description":"Apply common device viewport presets for responsive testing","input_schema":{"type":"object","properties":{"device":{"type":"string","enum":["iphone-se","iphone-14","ipad","pixel-7","desktop-1080","desktop-4k"],"description":"Device preset to apply"}},"required":["device"]}},
-  {"type":"function","name":"clipboard_read","description":"Read the current clipboard content from the page","input_schema":{"type":"object","properties":{}}},
+  { "type": "function", "name": "evaluate_js", "description": "Execute custom JavaScript code on the page and return the result. Use for complex interactions.", "input_schema": { "type": "object", "properties": { "code": { "type": "string" } }, "required": ["code"] } },
+  { "type": "function", "name": "set_viewport", "description": "Change the page viewport size for responsive testing", "input_schema": { "type": "object", "properties": { "width": { "type": "number" }, "height": { "type": "number" } }, "required": ["width", "height"] } },
+  { "type": "function", "name": "viewport_presets", "description": "Apply common device viewport presets for responsive testing", "input_schema": { "type": "object", "properties": { "device": { "type": "string", "enum": ["iphone-se", "iphone-14", "ipad", "pixel-7", "desktop-1080", "desktop-4k"], "description": "Device preset to apply" } }, "required": ["device"] } },
+  { "type": "function", "name": "clipboard_read", "description": "Read the current clipboard content from the page", "input_schema": { "type": "object", "properties": {} } },
 
   // --- Wait ---
-  {"type":"function","name":"wait","description":"Wait milliseconds for page to load or animation to complete","input_schema":{"type":"object","properties":{"ms":{"type":"number"}},"required":["ms"]}},
-  {"type":"function","name":"ask_user","description":"Ask the user a question and wait for their response. ALWAYS provide an options array with 2-4 clickable choices. Only use when truly blocked (login, CAPTCHA, sensitive action).","input_schema":{"type":"object","properties":{"question":{"type":"string"},"options":{"type":"array","items":{"type":"string"},"description":"2-4 quick reply options for the user to choose from"}},"required":["question"]}},
+  { "type": "function", "name": "wait", "description": "Wait milliseconds for page to load or animation to complete", "input_schema": { "type": "object", "properties": { "ms": { "type": "number" } }, "required": ["ms"] } },
+  { "type": "function", "name": "ask_user", "description": "Ask the user a question and wait for their response. ALWAYS provide an options array with 2-4 clickable choices. Only use when truly blocked (login, CAPTCHA, sensitive action).", "input_schema": { "type": "object", "properties": { "question": { "type": "string" }, "options": { "type": "array", "items": { "type": "string" }, "description": "2-4 quick reply options for the user to choose from" } }, "required": ["question"] } },
 
   // --- Tab Management ---
-  {"type":"function","name":"tab_list","description":"List all open tabs with their titles and URLs","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"tab_switch","description":"Switch to a different tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}},
-  {"type":"function","name":"tab_new","description":"Open a new tab with an optional URL","input_schema":{"type":"object","properties":{"url":{"type":"string"}}}},
-  {"type":"function","name":"tab_close","description":"Close a tab by its index (0-based)","input_schema":{"type":"object","properties":{"index":{"type":"number"}},"required":["index"]}},
+  { "type": "function", "name": "tab_list", "description": "List all open tabs with their titles and URLs", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "tab_switch", "description": "Switch to a different tab by its index (0-based)", "input_schema": { "type": "object", "properties": { "index": { "type": "number" } }, "required": ["index"] } },
+  { "type": "function", "name": "tab_new", "description": "Open a new tab with an optional URL", "input_schema": { "type": "object", "properties": { "url": { "type": "string" } } } },
+  { "type": "function", "name": "tab_close", "description": "Close a tab by its index (0-based)", "input_schema": { "type": "object", "properties": { "index": { "type": "number" } }, "required": ["index"] } },
 
   // --- Bookmarks ---
-  {"type":"function","name":"bookmark_search","description":"Search bookmarks by query string","input_schema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}},
-  {"type":"function","name":"bookmark_create","description":"Bookmark the current page or a specific URL","input_schema":{"type":"object","properties":{"title":{"type":"string"},"url":{"type":"string"}}}},
+  { "type": "function", "name": "bookmark_search", "description": "Search bookmarks by query string", "input_schema": { "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"] } },
+  { "type": "function", "name": "bookmark_create", "description": "Bookmark the current page or a specific URL", "input_schema": { "type": "object", "properties": { "title": { "type": "string" }, "url": { "type": "string" } } } },
 
   // --- History ---
-  {"type":"function","name":"history_search","description":"Search browser history by text query. Returns recent matching visits.","input_schema":{"type":"object","properties":{"query":{"type":"string"},"max_results":{"type":"number"}},"required":["query"]}},
+  { "type": "function", "name": "history_search", "description": "Search browser history by text query. Returns recent matching visits.", "input_schema": { "type": "object", "properties": { "query": { "type": "string" }, "max_results": { "type": "number" } }, "required": ["query"] } },
 
   // --- Downloads ---
-  {"type":"function","name":"download","description":"Download a file from a URL","input_schema":{"type":"object","properties":{"url":{"type":"string"},"filename":{"type":"string"}},"required":["url"]}},
+  { "type": "function", "name": "download", "description": "Download a file from a URL", "input_schema": { "type": "object", "properties": { "url": { "type": "string" }, "filename": { "type": "string" } }, "required": ["url"] } },
 
   // --- Cookies ---
-  {"type":"function","name":"get_cookies","description":"Get cookies for the current page or a specific domain","input_schema":{"type":"object","properties":{"domain":{"type":"string"}}}},
-  {"type":"function","name":"cookie_set","description":"Set a cookie. Requires user confirmation.","input_schema":{"type":"object","properties":{"name":{"type":"string"},"value":{"type":"string"},"domain":{"type":"string"},"path":{"type":"string","description":"Cookie path (default /)"},"secure":{"type":"boolean","description":"Secure flag (default true)"},"httpOnly":{"type":"boolean","description":"HttpOnly flag (default false)"}},"required":["name","value","domain"]}},
-  {"type":"function","name":"cookie_delete","description":"Delete a cookie by name and domain","input_schema":{"type":"object","properties":{"name":{"type":"string"},"domain":{"type":"string"}},"required":["name","domain"]}},
+  { "type": "function", "name": "get_cookies", "description": "Get cookies for the current page or a specific domain", "input_schema": { "type": "object", "properties": { "domain": { "type": "string" } } } },
+  { "type": "function", "name": "cookie_set", "description": "Set a cookie. Requires user confirmation.", "input_schema": { "type": "object", "properties": { "name": { "type": "string" }, "value": { "type": "string" }, "domain": { "type": "string" }, "path": { "type": "string", "description": "Cookie path (default /)" }, "secure": { "type": "boolean", "description": "Secure flag (default true)" }, "httpOnly": { "type": "boolean", "description": "HttpOnly flag (default false)" } }, "required": ["name", "value", "domain"] } },
+  { "type": "function", "name": "cookie_delete", "description": "Delete a cookie by name and domain", "input_schema": { "type": "object", "properties": { "name": { "type": "string" }, "domain": { "type": "string" } }, "required": ["name", "domain"] } },
 
   // --- Network ---
-  {"type":"function","name":"network_capture","description":"Capture network requests for a duration. Returns URLs, methods, status codes, and timing.","input_schema":{"type":"object","properties":{"duration":{"type":"number","description":"Capture duration in seconds (default 5)"},"filter":{"type":"string","description":"Optional URL regex filter"}}}},
+  { "type": "function", "name": "network_capture", "description": "Capture network requests for a duration. Returns URLs, methods, status codes, and timing.", "input_schema": { "type": "object", "properties": { "duration": { "type": "number", "description": "Capture duration in seconds (default 5)" }, "filter": { "type": "string", "description": "Optional URL regex filter" } } } },
 
   // --- Recording ---
-  {"type":"function","name":"record_start","description":"Start recording browser interactions (captures periodic screenshots)","input_schema":{"type":"object","properties":{}}},
-  {"type":"function","name":"record_stop","description":"Stop recording and get all captured frames as a summary","input_schema":{"type":"object","properties":{}}}
+  { "type": "function", "name": "record_start", "description": "Start recording browser interactions (captures periodic screenshots)", "input_schema": { "type": "object", "properties": {} } },
+  { "type": "function", "name": "record_stop", "description": "Stop recording and get all captured frames as a summary", "input_schema": { "type": "object", "properties": {} } }
 ];
 
 const SYSTEM_PROMPT = `You control a web browser via DevTools Protocol. Use tools to complete tasks.
@@ -89,10 +89,193 @@ let consoleLogs = [];
 let recording = false;
 let recordFrames = [];
 let recordInterval = null;
-let userResponse = null;
-let userResponseResolve = null;
+let askUserResolve = null;
+let confirmResolve = null;
 let taskTabGroupId = null;
 let abortController = null;
+let activeTask = null;
+const expectedDetachTabIds = new Set();
+const expectedClosedTaskTabIds = new Set();
+
+const TASK_STATES = {
+  IDLE: 'idle',
+  STARTING: 'starting',
+  RUNNING: 'running',
+  WAITING_USER: 'waiting_user',
+  STOPPING: 'stopping',
+  COMPLETED: 'completed',
+  FAILED: 'failed'
+};
+
+const DEFAULT_TOOL_TIMEOUT_MS = 15000;
+const TOOL_TIMEOUTS = {
+  ask_user: 5 * 60 * 1000,
+  download: 90 * 1000,
+  evaluate_js: 90 * 1000,
+  get_cookies: 90 * 1000,
+  cookie_set: 90 * 1000,
+  cookie_delete: 90 * 1000,
+  navigate: 20 * 1000,
+  network_capture: 40 * 1000,
+  screenshot: 20 * 1000,
+  wait: 7 * 1000
+};
+
+function syncLegacyTaskFlags() {
+  running = Boolean(activeTask && ![TASK_STATES.COMPLETED, TASK_STATES.FAILED, TASK_STATES.IDLE].includes(activeTask.state));
+  shouldStop = Boolean(activeTask?.shouldStop);
+  abortController = activeTask?.abortController || null;
+  if (!activeTask) {
+    currentTaskTabId = null;
+  }
+}
+
+function createTaskContext(task, taskId, modelOverride, images) {
+  return {
+    id: taskId || Date.now(),
+    text: task,
+    modelOverride: modelOverride || null,
+    images: images || [],
+    preferredTabId: null,
+    tabId: null,
+    state: TASK_STATES.STARTING,
+    shouldStop: false,
+    stopReason: null,
+    waitingFor: null,
+    lastTool: null,
+    lastToolDurationMs: null,
+    lastToolOk: null,
+    lastError: null,
+    toolRuns: 0,
+    startedAt: Date.now(),
+    abortController: new AbortController()
+  };
+}
+
+function setActiveTask(taskCtx) {
+  activeTask = taskCtx;
+  syncLegacyTaskFlags();
+  return activeTask;
+}
+
+function updateActiveTask(patch = {}) {
+  if (!activeTask) return null;
+  Object.assign(activeTask, patch);
+  syncLegacyTaskFlags();
+  return activeTask;
+}
+
+function transitionTaskState(state, patch = {}) {
+  return updateActiveTask({ ...patch, state });
+}
+
+function clearActiveTask() {
+  activeTask = null;
+  syncLegacyTaskFlags();
+}
+
+function getTaskStatus() {
+  if (!activeTask) {
+    return { running: false, state: TASK_STATES.IDLE };
+  }
+  return {
+    running,
+    taskId: activeTask.id,
+    state: activeTask.state,
+    tabId: activeTask.tabId,
+    lastTool: activeTask.lastTool,
+    lastError: activeTask.lastError
+  };
+}
+
+function stopActiveTask(reason = 'user') {
+  if (!activeTask) return false;
+  transitionTaskState(TASK_STATES.STOPPING, { shouldStop: true, stopReason: reason });
+  if (askUserResolve) {
+    askUserResolve('Task stopped');
+    askUserResolve = null;
+  }
+  if (confirmResolve) {
+    confirmResolve('no');
+    confirmResolve = null;
+  }
+  activeTask.abortController?.abort();
+  return true;
+}
+
+function getActiveTaskMessageMeta() {
+  return {
+    taskId: activeTask?.id || null,
+    tabId: activeTask?.tabId || currentTaskTabId || null
+  };
+}
+
+function getToolTimeoutMs(tool) {
+  return TOOL_TIMEOUTS[tool] || DEFAULT_TOOL_TIMEOUT_MS;
+}
+
+async function withTimeout(promise, timeoutMs, message) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function normalizeToolResult(tool, result, durationMs) {
+  const normalized = typeof result === 'string'
+    ? { text: result }
+    : (result && typeof result === 'object' ? { ...result } : { text: String(result ?? '') });
+
+  if (typeof normalized.text !== 'string') {
+    normalized.text = JSON.stringify(normalized.text ?? normalized);
+  }
+
+  normalized.tool = tool;
+  normalized.durationMs = durationMs;
+  normalized.ok = normalized.ok !== false && !normalized.text.startsWith('Error');
+
+  return normalized;
+}
+
+function isAutomatableTab(tab) {
+  return Boolean(tab && /^(https?|about):/.test(tab.url || ''));
+}
+
+async function createDedicatedTaskTab() {
+  const tab = await chrome.tabs.create({ url: 'about:blank', active: true });
+  await sleep(500);
+  return tab;
+}
+
+async function resolveInitialTaskTab(preferredTabId = null) {
+  if (preferredTabId) {
+    try {
+      const preferredTab = await chrome.tabs.get(preferredTabId);
+      if (isAutomatableTab(preferredTab)) {
+        return preferredTab;
+      }
+    } catch { }
+    return createDedicatedTaskTab();
+  }
+
+  return createDedicatedTaskTab();
+}
+
+function saveTaskHistory(taskText, resultText) {
+  chrome.storage.local.get(['taskHistory'], (data) => {
+    const history = data.taskHistory || [];
+    history.unshift({ task: taskText, result: resultText.substring(0, 500), timestamp: Date.now() });
+    if (history.length > 50) history.length = 50;
+    chrome.storage.local.set({ taskHistory: history });
+  });
+}
 
 // --- CONTEXT MENU ---
 chrome.runtime.onInstalled.addListener(() => {
@@ -115,19 +298,34 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'run_task') {
-    runTask(msg.task, msg.taskId, msg.model, msg.images);
+    if (activeTask) {
+      sendResponse({ success: false, error: 'A task is already running' });
+      return true;
+    }
+    runTask(msg.task, msg.taskId, msg.model, msg.images, msg.tabId || null);
     sendResponse({ success: true });
   }
-  else if (msg.type === 'stop_task') { shouldStop = true; abortController?.abort(); sendResponse({ success: true }); }
-  else if (msg.type === 'get_status') { sendResponse({ running }); }
+  else if (msg.type === 'stop_task') { sendResponse({ success: stopActiveTask('user') }); }
+  else if (msg.type === 'get_status') { sendResponse(getTaskStatus()); }
   else if (msg.type === 'user_response') {
-    userResponse = msg.text;
-    if (userResponseResolve) { userResponseResolve(msg.text); userResponseResolve = null; }
+    if (!activeTask) {
+      sendResponse({ success: false, error: 'No active task waiting for input' });
+      return true;
+    }
+    // Route response to the correct pending promise
+    if (msg.confirm) {
+      if (confirmResolve) { confirmResolve(msg.text); confirmResolve = null; }
+    } else {
+      if (askUserResolve) { askUserResolve(msg.text); askUserResolve = null; }
+    }
+    if (activeTask.state !== TASK_STATES.STOPPING) {
+      transitionTaskState(TASK_STATES.RUNNING, { waitingFor: null });
+    }
     sendResponse({ success: true });
   }
   else if (msg.type === 'schedule_task') {
-    scheduleTask(msg.task, msg.cronMinutes);
-    sendResponse({ success: true });
+    scheduleTask(msg.task, msg.cronMinutes).then(() => sendResponse({ success: true }));
+    return true;
   }
   else if (msg.type === 'get_scheduled') {
     chrome.storage.local.get(['scheduledTasks'], (data) => {
@@ -136,8 +334,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   else if (msg.type === 'remove_scheduled') {
-    removeScheduledTask(msg.index);
-    sendResponse({ success: true });
+    removeScheduledTask(msg.index).then(() => sendResponse({ success: true }));
+    return true;
   }
   return true;
 });
@@ -149,29 +347,33 @@ chrome.action.onClicked.addListener((tab) => {
 // Detach debugger if tab closes
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === debugTabId) { debugTabId = null; }
+  if (expectedClosedTaskTabIds.has(tabId)) {
+    expectedClosedTaskTabIds.delete(tabId);
+    return;
+  }
+  if (activeTask?.tabId === tabId) {
+    stopActiveTask('tab_closed');
+  }
 });
 
 // --- SCHEDULED TASKS (chrome.alarms) ---
 
-function scheduleTask(task, intervalMinutes) {
-  chrome.storage.local.get(['scheduledTasks'], (data) => {
-    const tasks = data.scheduledTasks || [];
-    const id = `z-ai-task-${Date.now()}`;
-    tasks.push({ task, intervalMinutes, alarmName: id, createdAt: Date.now() });
-    chrome.storage.local.set({ scheduledTasks: tasks });
-    chrome.alarms.create(id, { periodInMinutes: intervalMinutes });
-  });
+async function scheduleTask(task, intervalMinutes) {
+  const tasks = (await chrome.storage.local.get(['scheduledTasks'])).scheduledTasks || [];
+  const id = `z-ai-task-${Date.now()}`;
+  tasks.push({ task, intervalMinutes, alarmName: id, createdAt: Date.now() });
+  await chrome.storage.local.set({ scheduledTasks: tasks });
+  // delayInMinutes ensures the first fire waits the full interval
+  chrome.alarms.create(id, { delayInMinutes: intervalMinutes, periodInMinutes: intervalMinutes });
 }
 
-function removeScheduledTask(index) {
-  chrome.storage.local.get(['scheduledTasks'], (data) => {
-    const tasks = data.scheduledTasks || [];
-    if (tasks[index]) {
-      chrome.alarms.clear(tasks[index].alarmName);
-      tasks.splice(index, 1);
-      chrome.storage.local.set({ scheduledTasks: tasks });
-    }
-  });
+async function removeScheduledTask(index) {
+  const tasks = (await chrome.storage.local.get(['scheduledTasks'])).scheduledTasks || [];
+  if (tasks[index]) {
+    await chrome.alarms.clear(tasks[index].alarmName);
+    tasks.splice(index, 1);
+    await chrome.storage.local.set({ scheduledTasks: tasks });
+  }
 }
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -179,18 +381,25 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     chrome.storage.local.get(['scheduledTasks'], (data) => {
       const tasks = data.scheduledTasks || [];
       const scheduled = tasks.find(t => t.alarmName === alarm.name);
-      if (scheduled && !running) {
-        runTask(scheduled.task, Date.now(), null, null);
+      if (!scheduled) return;
+      if (running) {
+        // Task is running — reschedule this alarm to retry in 1 minute
+        chrome.alarms.create(alarm.name, { delayInMinutes: 1, periodInMinutes: scheduled.intervalMinutes });
+        return;
       }
+      runTask(scheduled.task, Date.now(), null, null);
     });
   }
 });
 
 // Restore alarms on service worker restart
-chrome.storage.local.get(['scheduledTasks'], (data) => {
+chrome.storage.local.get(['scheduledTasks'], async (data) => {
   const tasks = data.scheduledTasks || [];
+  // Clear any stale alarms first
+  await chrome.alarms.clearAll();
   for (const t of tasks) {
-    chrome.alarms.create(t.alarmName, { periodInMinutes: t.intervalMinutes });
+    // Re-create with delayInMinutes so they don't all fire immediately on restart
+    chrome.alarms.create(t.alarmName, { delayInMinutes: t.intervalMinutes, periodInMinutes: t.intervalMinutes });
   }
 });
 
@@ -199,7 +408,8 @@ chrome.storage.local.get(['scheduledTasks'], (data) => {
 async function attachDebugger(tabId) {
   if (debugTabId === tabId) return;
   if (debugTabId) {
-    try { await chrome.debugger.detach({ tabId: debugTabId }); } catch {}
+    expectedDetachTabIds.add(debugTabId);
+    try { await chrome.debugger.detach({ tabId: debugTabId }); } catch { }
   }
   await chrome.debugger.attach({ tabId }, "1.3");
   await chrome.debugger.sendCommand({ tabId }, "Page.enable");
@@ -228,12 +438,12 @@ async function attachDebugger(tabId) {
   debugLogHandler = logHandler;
 
   // Register detach recovery handler
-  const detachedHandler = (source, method, params) => {
-    if (method === 'Debugger.detached' && source.tabId === tabId) {
-      handleDebuggerDetached(source, params);
+  const detachedHandler = (source, reason) => {
+    if (source.tabId === tabId) {
+      handleDebuggerDetached(source, reason);
     }
   };
-  chrome.debugger.onEvent.addListener(detachedHandler);
+  chrome.debugger.onDetach.addListener(detachedHandler);
   debugDetachedHandler = detachedHandler;
 }
 
@@ -242,6 +452,14 @@ let debugDetachedHandler = null;
 
 // Handle unexpected debugger detachment and try to recover
 async function handleDebuggerDetached(source, reason) {
+  if (expectedDetachTabIds.has(source.tabId)) {
+    expectedDetachTabIds.delete(source.tabId);
+    return;
+  }
+  if (reason === 'target_closed' && activeTask?.tabId === source.tabId) {
+    stopActiveTask('tab_closed');
+    return;
+  }
   // Only recover if we're in the middle of a task and this is our debug tab
   if (running && source.tabId === debugTabId) {
     console.log('Debugger detached unexpectedly, attempting to re-attach...', reason);
@@ -262,11 +480,12 @@ async function detachDebugger() {
     debugLogHandler = null;
   }
   if (debugDetachedHandler) {
-    chrome.debugger.onEvent.removeListener(debugDetachedHandler);
+    chrome.debugger.onDetach.removeListener(debugDetachedHandler);
     debugDetachedHandler = null;
   }
   if (debugTabId) {
-    try { await chrome.debugger.detach({ tabId: debugTabId }); } catch {}
+    expectedDetachTabIds.add(debugTabId);
+    try { await chrome.debugger.detach({ tabId: debugTabId }); } catch { }
     debugTabId = null;
   }
 }
@@ -287,7 +506,7 @@ async function showTaskEffects(tabId) {
     const groupId = await chrome.tabs.group({ tabIds: [tabId] });
     await chrome.tabGroups.update(groupId, { title: 'Z AI', color: 'purple', collapsed: false });
     taskTabGroupId = groupId;
-  } catch {}
+  } catch { }
 
   // 3. Page overlay glow border + floating indicator (safe DOM construction, no innerHTML)
   try {
@@ -313,7 +532,7 @@ async function showTaskEffects(tabId) {
         document.body.appendChild(wrap);
       })()`
     });
-  } catch {}
+  } catch { }
 }
 
 async function hideTaskEffects(tabId) {
@@ -322,7 +541,7 @@ async function hideTaskEffects(tabId) {
 
   // 2. Ungroup tab
   if (taskTabGroupId !== null) {
-    try { await chrome.tabs.ungroup([tabId]); } catch {}
+    try { await chrome.tabs.ungroup([tabId]); } catch { }
     taskTabGroupId = null;
   }
 
@@ -336,65 +555,83 @@ async function hideTaskEffects(tabId) {
         if (s) s.remove();
       })()`
     });
-  } catch {}
+  } catch { }
+}
+
+async function setTaskTabContext(nextTabId, options = {}) {
+  const { showEffects = true, hidePrevious = true } = options;
+  const previousTabId = currentTaskTabId;
+  const nextTab = await chrome.tabs.get(nextTabId);
+
+  if (!isAutomatableTab(nextTab)) {
+    throw new Error(`Tab ${nextTabId} cannot be automated (${nextTab.url || 'unsupported URL'})`);
+  }
+
+  if (previousTabId && previousTabId !== nextTabId && hidePrevious) {
+    await hideTaskEffects(previousTabId);
+  }
+
+  currentTaskTabId = nextTabId;
+  if (activeTask) {
+    updateActiveTask({ tabId: nextTabId });
+  }
+  await attachDebugger(nextTabId);
+
+  if (showEffects) {
+    await showTaskEffects(nextTabId);
+  }
 }
 
 // --- AGENT LOOP ---
 
-async function runTask(task, taskId, modelOverride, images) {
-  if (running) { broadcast({ type: 'error', text: 'A task is already running', taskId }); return; }
-  running = true;
-  shouldStop = false;
+async function runTask(task, taskId, modelOverride, images, preferredTabId = null) {
+  if (activeTask) { broadcast({ type: 'error', text: 'A task is already running', taskId }); return; }
+  const taskCtx = setActiveTask(createTaskContext(task, taskId, modelOverride, images));
+  updateActiveTask({ preferredTabId });
   consoleLogs = [];
+  let lastResponseText = '';
+  try {
+    const { authToken, apiEndpoint, modelName, systemPrompt } = await getConfig();
+    const endpoint = apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
+    const model = modelOverride || modelName || 'glm-5.1';
+    const sysPrompt = systemPrompt || SYSTEM_PROMPT;
+    updateActiveTask({ model, endpoint, systemPrompt: sysPrompt });
 
-  const { authToken, apiEndpoint, modelName, systemPrompt } = await getConfig();
-  const endpoint = apiEndpoint || 'https://api.z.ai/api/anthropic/v1/messages';
-  const model = modelOverride || modelName || 'glm-5.1';
-  const sysPrompt = systemPrompt || SYSTEM_PROMPT;
-
-  if (!authToken) {
-    broadcast({ type: 'error', text: 'Z.AI API Key not configured. Go to Settings.', taskId });
-    running = false; return;
-  }
-
-  // Get a usable tab (skip chrome:// and edge:// URLs)
-  let tab;
-  const allTabs = await chrome.tabs.query({ currentWindow: true });
-  tab = allTabs.find(t => t.active && /^https?:/.test(t.url));
-  if (!tab) tab = allTabs.find(t => /^https?:/.test(t.url));
-  if (!tab) {
-    const newTab = await chrome.tabs.create({ url: 'about:blank' });
-    await sleep(500);
-    tab = newTab;
-  }
-
-  currentTaskTabId = tab.id;
-  abortController = new AbortController();
-
-  try { await attachDebugger(tab.id); }
-  catch (e) {
-    broadcast({ type: 'error', text: `Could not attach debugger: ${e.message}`, taskId });
-    running = false; return;
-  }
-
-  // Build first message — text + optional images
-  const userContent = [];
-  if (images && images.length > 0) {
-    for (const img of images) {
-      userContent.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } });
+    if (!authToken) {
+      throw new Error('Z.AI API Key not configured. Go to Settings.');
     }
-  }
-  userContent.push({ type: 'text', text: task });
-  const messages = [{ role: 'user', content: userContent }];
-  broadcast({ type: 'task_start', text: task, taskId, tabId: tab.id });
-  await showTaskEffects(tab.id);
 
-  for (let i = 0; i < 40 && !shouldStop; i++) {
-    broadcast({ type: 'thinking', taskId });
-    broadcast({ type: 'progress', step: i + 1, maxSteps: 40, taskId });
-    try {
-      const response = await callAPI(endpoint, authToken, model, sysPrompt, messages, TOOLS, abortController?.signal);
-      if (shouldStop) break;
+    const tab = await resolveInitialTaskTab(preferredTabId);
+    await setTaskTabContext(tab.id, { showEffects: false, hidePrevious: false });
+    transitionTaskState(TASK_STATES.RUNNING, { tabId: tab.id });
+
+    const userContent = [];
+    if (images && images.length > 0) {
+      for (const img of images) {
+        userContent.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } });
+      }
+    }
+    userContent.push({ type: 'text', text: task });
+    const messages = [{ role: 'user', content: userContent }];
+
+    broadcast({ type: 'task_start', text: task, taskId: taskCtx.id, tabId: tab.id, model });
+    await showTaskEffects(tab.id);
+
+    for (let i = 0; i < 40 && !taskCtx.shouldStop; i++) {
+      broadcast({ type: 'thinking', taskId: taskCtx.id, tabId: taskCtx.tabId });
+      broadcast({ type: 'progress', step: i + 1, maxSteps: 40, percent: Math.round(((i + 1) / 40) * 100), taskId: taskCtx.id, tabId: taskCtx.tabId });
+
+      let response;
+      try {
+        response = await callAPI(endpoint, authToken, model, sysPrompt, messages, TOOLS, taskCtx.abortController.signal);
+      } catch (err) {
+        if (taskCtx.shouldStop && err.message === 'Request aborted') {
+          break;
+        }
+        throw err;
+      }
+
+      if (taskCtx.shouldStop) break;
 
       const content = response.content;
       if (response.stop_reason === 'tool_use' && content) {
@@ -403,56 +640,132 @@ async function runTask(task, taskId, modelOverride, images) {
         const toolResults = [];
 
         for (const tb of toolBlocks) {
-          if (shouldStop) break;
-          broadcast({ type: 'tool_call', tool: tb.name, params: tb.input || {}, taskId });
+          if (taskCtx.shouldStop) break;
+          broadcast({ type: 'tool_call', tool: tb.name, params: tb.input || {}, taskId: taskCtx.id, tabId: taskCtx.tabId });
 
-          // Capture frame if recording
-          if (recording && tab.id === currentTaskTabId) {
-            try {
-              const { data } = await cdp(tab.id, 'Page.captureScreenshot', { format: 'jpeg', quality: 30 });
-              recordFrames.push(data);
-            } catch {}
+          const activeTabId = taskCtx.tabId || currentTaskTabId;
+          if (!activeTabId) {
+            throw new Error('No active task tab');
           }
 
-          const result = await executeTool(tab.id, tb.name, tb.input || {});
+          if (recording) {
+            try {
+              const { data } = await cdp(activeTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 30 });
+              recordFrames.push(data);
+            } catch { }
+          }
 
-          broadcast({ type: 'tool_result', tool: tb.name, result: result.text || result, taskId });
+          const result = await executeToolWithGuard(taskCtx, tb.name, tb.input || {});
+          if (taskCtx.shouldStop) break;
+          updateActiveTask({ tabId: currentTaskTabId || activeTabId, toolRuns: taskCtx.toolRuns + 1 });
+          broadcast({ type: 'tool_result', tool: tb.name, result, taskId: taskCtx.id, tabId: taskCtx.tabId });
 
-          // Build tool result - include screenshot as image if present
           const toolContent = [];
           if (result.image) {
             toolContent.push({
-              type: "image",
-              source: { type: "base64", media_type: "image/jpeg", data: result.image }
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/jpeg', data: result.image }
             });
           }
           toolContent.push({
-            type: "text",
-            text: typeof result === 'string' ? result : (result.text || JSON.stringify(result))
+            type: 'text',
+            text: result.text || JSON.stringify(result)
           });
 
           toolResults.push({ type: 'tool_result', tool_use_id: tb.id, content: toolContent });
         }
+
+        if (taskCtx.shouldStop) break;
         messages.push({ role: 'user', content: toolResults });
       } else {
         const text = content?.filter(b => b.type === 'text').map(b => b.text).join('\n') || '';
-        if (text) broadcast({ type: 'final_response', text, taskId });
+        if (text) {
+          lastResponseText = text;
+          broadcast({ type: 'final_response', text, taskId: taskCtx.id, tabId: taskCtx.tabId });
+        }
+        transitionTaskState(TASK_STATES.COMPLETED);
         break;
       }
-    } catch (err) {
-      broadcast({ type: 'error', text: `Error: ${err.message}`, taskId });
-      break;
     }
+
+    if (!taskCtx.shouldStop && activeTask?.id === taskCtx.id && activeTask.state === TASK_STATES.RUNNING) {
+      throw new Error('Task reached the maximum number of steps without producing a final response.');
+    }
+  } catch (err) {
+    if (!(taskCtx.shouldStop && err.message === 'Request aborted')) {
+      transitionTaskState(TASK_STATES.FAILED, { lastError: err.message });
+      broadcast({ type: 'error', text: `Error: ${err.message}`, taskId: taskCtx.id, tabId: taskCtx.tabId });
+    }
+  } finally {
+    if (recording) {
+      recording = false;
+      clearInterval(recordInterval);
+      recordInterval = null;
+      recordFrames = [];
+    }
+
+    if (currentTaskTabId) {
+      await hideTaskEffects(currentTaskTabId);
+    }
+    await detachDebugger();
+
+    saveTaskHistory(task, lastResponseText);
+    broadcast({
+      type: 'task_end',
+      taskId: taskCtx.id,
+      tabId: taskCtx.tabId,
+      stopped: taskCtx.shouldStop,
+      reason: taskCtx.stopReason,
+      state: activeTask?.state || taskCtx.state
+    });
+    clearActiveTask();
+  }
+}
+
+async function executeToolWithGuard(taskCtx, tool, params) {
+  if (!activeTask || activeTask.id !== taskCtx.id) {
+    return normalizeToolResult(tool, { ok: false, text: 'Error: Task is no longer active.' }, 0);
   }
 
-  // Stop recording if active
-  if (recording) { recording = false; clearInterval(recordInterval); recordFrames = []; }
+  const timeoutMs = getToolTimeoutMs(tool);
+  const startedAt = Date.now();
+  updateActiveTask({ lastTool: tool, lastError: null });
 
-  await hideTaskEffects(tab.id);
-  await detachDebugger();
-  broadcast({ type: 'task_end', taskId });
-  running = false;
-  currentTaskTabId = null;
+  if (tool === 'ask_user') {
+    transitionTaskState(TASK_STATES.WAITING_USER, { waitingFor: 'ask_user' });
+  } else if (activeTask.state !== TASK_STATES.STOPPING) {
+    transitionTaskState(TASK_STATES.RUNNING, { waitingFor: null });
+  }
+
+  try {
+    const result = await withTimeout(
+      executeTool(taskCtx.tabId || currentTaskTabId, tool, params),
+      timeoutMs,
+      `Tool "${tool}" timed out after ${timeoutMs}ms`
+    );
+    const normalized = normalizeToolResult(tool, result, Date.now() - startedAt);
+    updateActiveTask({
+      lastToolDurationMs: normalized.durationMs,
+      lastToolOk: normalized.ok,
+      waitingFor: null
+    });
+    if (activeTask?.id === taskCtx.id && activeTask.state !== TASK_STATES.STOPPING) {
+      transitionTaskState(TASK_STATES.RUNNING);
+    }
+    return normalized;
+  } catch (err) {
+    const normalized = normalizeToolResult(tool, { ok: false, text: `Error: ${err.message}` }, Date.now() - startedAt);
+    updateActiveTask({
+      lastToolDurationMs: normalized.durationMs,
+      lastToolOk: false,
+      lastError: normalized.text,
+      waitingFor: null
+    });
+    if (activeTask?.id === taskCtx.id && activeTask.state !== TASK_STATES.STOPPING) {
+      transitionTaskState(TASK_STATES.RUNNING);
+    }
+    return normalized;
+  }
 }
 
 // --- TOOL EXECUTION ---
@@ -474,6 +787,7 @@ async function executeTool(tabId, tool, params) {
             }
           };
           chrome.debugger.onEvent.addListener(handler);
+          setTimeout(() => chrome.debugger.onEvent.removeListener(handler), 8000);
         });
         return { text: `Navigated to ${params.url}` };
       }
@@ -545,15 +859,20 @@ async function executeTool(tabId, tool, params) {
       }
 
       case 'performance_metrics': {
-        const metrics = await cdp(tabId, 'Performance.getMetrics');
+        await cdp(tabId, 'Performance.enable');
+        const metricsResponse = await cdp(tabId, 'Performance.getMetrics');
+        const metrics = metricsResponse?.metrics || [];
         const fcp = metrics.find(m => m.name === 'FirstContentfulPaint');
         const lcp = metrics.find(m => m.name === 'LargestContentfulPaint');
-        const domNodes = await cdp(tabId, 'DOM.getDocument', {}, { depth: 0 });
+        const domNodes = await cdp(tabId, 'Runtime.evaluate', {
+          expression: 'document.querySelectorAll("*").length',
+          returnByValue: true
+        });
         const jsHeap = await cdp(tabId, 'Runtime.getHeapUsage');
         const result = {
           firstContentfulPaint: fcp?.value || 'N/A',
           largestContentfulPaint: lcp?.value || 'N/A',
-          domNodes: domNodes?.root?.nodeId ? 'Available' : 'N/A',
+          domNodes: domNodes?.result?.value ?? 'N/A',
           jsHeapUsed: jsHeap?.usedSize || 'N/A',
           jsHeapTotal: jsHeap?.totalSize || 'N/A'
         };
@@ -785,19 +1104,20 @@ async function executeTool(tabId, tool, params) {
 
       case 'ask_user': {
         // Send question + options to side panel and wait for response
-        broadcast({ type: 'ask_user', question: params.question, options: params.options || [], taskId: currentTaskTabId });
+        broadcast({ type: 'ask_user', question: params.question, options: params.options || [], ...getActiveTaskMessageMeta() });
         const response = await new Promise((resolve) => {
-          userResponseResolve = resolve;
+          askUserResolve = resolve;
           // Timeout after 5 minutes
           setTimeout(() => resolve('Sin respuesta (timeout)'), 300000);
         });
+        askUserResolve = null;
         return { text: `User responded: ${response}` };
       }
 
       // === Tab Management ===
       case 'tab_list': {
         const tabs = await chrome.tabs.query({});
-        const list = tabs.map((t, i) => `${i}: [${t.title?.substring(0,40)}] ${t.url?.substring(0,60)}`).join('\n');
+        const list = tabs.map((t, i) => `${i}: [${t.title?.substring(0, 40)}] ${t.url?.substring(0, 60)}`).join('\n');
         return { text: list || 'No tabs open' };
       }
 
@@ -805,13 +1125,23 @@ async function executeTool(tabId, tool, params) {
         const allT = await chrome.tabs.query({ currentWindow: true });
         const target = allT[params.index];
         if (!target) return { text: `Tab index ${params.index} not found` };
+        if (!isAutomatableTab(target)) {
+          return { text: `Tab index ${params.index} cannot be automated: ${target.url || 'unsupported URL'}` };
+        }
         await chrome.tabs.update(target.id, { active: true });
+        await sleep(250);
+        await setTaskTabContext(target.id);
         return { text: `Switched to tab ${params.index}: ${target.title}` };
       }
 
       case 'tab_new': {
-        const newTab = await chrome.tabs.create({ url: params.url || 'about:blank' });
+        const url = params.url || 'about:blank';
+        if (params.url && !(await isUrlSafe(params.url))) {
+          return { text: `Blocked navigation to unsafe URL: ${params.url}` };
+        }
+        const newTab = await chrome.tabs.create({ url });
         if (params.url) await sleep(2000);
+        await setTaskTabContext(newTab.id);
         return { text: `Opened new tab: ${params.url || 'blank'}` };
       }
 
@@ -819,7 +1149,19 @@ async function executeTool(tabId, tool, params) {
         const allT = await chrome.tabs.query({ currentWindow: true });
         const target = allT[params.index];
         if (!target) return { text: `Tab index ${params.index} not found` };
+        const closingCurrentTab = target.id === currentTaskTabId;
+        const fallbackTab = allT.find(t => t.id !== target.id && /^(https?|about):/.test(t.url || ''));
+        if (closingCurrentTab) {
+          await hideTaskEffects(target.id);
+        }
+        expectedClosedTaskTabIds.add(target.id);
         await chrome.tabs.remove(target.id);
+        if (closingCurrentTab) {
+          await detachDebugger();
+          currentTaskTabId = null;
+          const nextTab = fallbackTab || await chrome.tabs.create({ url: 'about:blank', active: true });
+          await setTaskTabContext(nextTab.id, { hidePrevious: false });
+        }
         return { text: `Closed tab ${params.index}` };
       }
 
@@ -846,9 +1188,10 @@ async function executeTool(tabId, tool, params) {
 
       // === History ===
       case 'history_search': {
+        const maxResults = Math.min(params.max_results || 10, 100);
         const results = await chrome.history.search({
           text: params.query,
-          maxResults: params.max_results || 10,
+          maxResults,
           startTime: Date.now() - 7 * 24 * 60 * 60 * 1000
         });
         const list = results.map(h => `${new Date(h.lastVisitTime).toLocaleString()} - ${h.title} (${h.url})`).join('\n');
@@ -880,7 +1223,7 @@ async function executeTool(tabId, tool, params) {
         if (!approved) return { text: 'User denied cookie access.' };
         const cookies = await chrome.cookies.getAll({ domain: cookieDomain });
         const list = cookies.slice(0, 20).map(c => {
-          const isSensitive = /session|token|auth|sid|csrf|jwt/i.test(c.name);
+          const isSensitive = /session|token|auth|sid|csrf|jwt|secret|key|pass|login|user.?id|account|api.?key|access|refresh|identity/i.test(c.name);
           return `${c.name}=${isSensitive ? '[REDACTED]' : c.value.substring(0, 50)}`;
         }).join('\n');
         return { text: list || 'No cookies found' };
@@ -913,8 +1256,8 @@ async function executeTool(tabId, tool, params) {
 
       // === Network ===
       case 'network_capture': {
-        const duration = params.duration || 5;
-        const filter = params.filter ? new RegExp(params.filter, 'i') : null;
+        const duration = Math.min(params.duration || 5, 30);
+        const filter = params.filter ? (() => { try { return new RegExp(params.filter.replace(/[.*+?{}()[\]\\]/g, '\\$&'), 'i'); } catch { return null; } })() : null;
         await cdp(tabId, 'Network.enable');
         const requests = [];
         const networkHandler = (source, method, params) => {
@@ -925,23 +1268,30 @@ async function executeTool(tabId, tool, params) {
               requests.push({
                 url,
                 method: params.request?.method,
-                timestamp: params.timestamp,
+                timestamp: params.wallTime || params.timestamp,
                 type: params.type,
                 requestId: params.requestId
               });
+            }
+          } else if (method === 'Network.responseReceived') {
+            const req = requests.find(r => r.requestId === params.requestId);
+            if (req && params.response) {
+              req.statusCode = params.response.status;
+              req.mimeType = params.response.mimeType;
             }
           } else if (method === 'Network.loadingFinished') {
             const req = requests.find(r => r.requestId === params.requestId);
             if (req) {
               req.finished = true;
               req.encodedDataLength = params.encodedDataLength;
-              req.timing = params.timestamp - req.timestamp;
+              req.state = params.encodedDataLength ? 'complete' : 'unknown';
             }
           } else if (method === 'Network.loadingFailed') {
             const req = requests.find(r => r.requestId === params.requestId);
             if (req) {
               req.failed = true;
               req.errorText = params.errorText;
+              req.state = 'failed';
             }
           }
         };
@@ -955,14 +1305,15 @@ async function executeTool(tabId, tool, params) {
       case 'record_start': {
         recording = true;
         recordFrames = [];
+        if (recordInterval) clearInterval(recordInterval);
         // Take a frame every 2 seconds
         recordInterval = setInterval(async () => {
           if (!recording || !debugTabId) return;
           try {
             const { data } = await cdp(debugTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 20 });
             recordFrames.push(data);
-            broadcast({ type: 'record_frame', count: recordFrames.length });
-          } catch {}
+            broadcast({ type: 'record_frame', count: recordFrames.length, ...getActiveTaskMessageMeta() });
+          } catch { }
         }, 2000);
         return { text: 'Recording started. Capturing a frame every 2 seconds.' };
       }
@@ -970,11 +1321,12 @@ async function executeTool(tabId, tool, params) {
       case 'record_stop': {
         recording = false;
         if (recordInterval) clearInterval(recordInterval);
+        recordInterval = null;
         const count = recordFrames.length;
         const summary = `Recording stopped. ${count} frames captured.`;
         // Send first frame as preview
         if (recordFrames.length > 0) {
-          broadcast({ type: 'record_done', frames: count, preview: recordFrames[recordFrames.length - 1] });
+          broadcast({ type: 'record_done', frames: count, preview: recordFrames[recordFrames.length - 1], ...getActiveTaskMessageMeta() });
         }
         const frames = recordFrames;
         recordFrames = [];
@@ -1033,9 +1385,9 @@ async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools
 
 // --- HELPERS ---
 
-async function getConfig() { return await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName', 'systemPrompt']); }
+async function getConfig() { return await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName', 'systemPrompt', 'devMode']); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => {}); }
+function broadcast(msg) { chrome.runtime.sendMessage(msg).catch(() => { }); }
 
 // Safe JS string encoding — prevents injection in Runtime.evaluate expressions
 function jsStr(value) {
@@ -1061,12 +1413,19 @@ async function isUrlSafe(url) {
 
 // User confirmation helper for sensitive operations
 async function confirmWithUser(question) {
-  broadcast({ type: 'ask_user', question, taskId: currentTaskTabId });
+  if (activeTask && activeTask.state !== TASK_STATES.STOPPING) {
+    transitionTaskState(TASK_STATES.WAITING_USER, { waitingFor: 'confirm' });
+  }
+  broadcast({ type: 'ask_user', question, confirm: true, ...getActiveTaskMessageMeta() });
   const response = await new Promise((resolve) => {
-    userResponseResolve = resolve;
+    confirmResolve = resolve;
     setTimeout(() => resolve('no'), 60000);
   });
+  confirmResolve = null;
+  if (activeTask && activeTask.state !== TASK_STATES.STOPPING) {
+    transitionTaskState(TASK_STATES.RUNNING, { waitingFor: null });
+  }
   const r = response.toLowerCase().trim();
-  const affirmative = ['sí', 'si', 'yes', 'yeah', 'yep', 'y', 'ok', 'okay', 'allow', 'permitir', 'aceptar', 'proceed', 'continue', '1', 'true', 'sure', 'alright', 'do it', 'go ahead'];
-  return affirmative.some(a => r === a || r.startsWith(a) || a.startsWith(r));
+  const affirmative = ['yes', 'y', 'ok', 'okay', 'allow', 'proceed', 'continue', 'sure', 'sí', 'si', 'permitir', 'aceptar', 'do it', 'go ahead'];
+  return affirmative.includes(r);
 }

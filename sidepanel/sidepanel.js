@@ -19,9 +19,12 @@ let currentTaskText = ''; // Store current task for export
 let currentModel = ''; // Store current model for export
 let autoScrollEnabled = true; // Auto-scroll toggle state
 let lastTaskInput = ''; // Store last input for Arrow Up shortcut
+let runningTaskId = null;
+let runningTaskTabId = null;
+const taskTabMap = {};
 
 // Sound notification base64 (short beep)
-const completionSound = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
+const completionSound = 'data:audio/wav;base64,UklGRtQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YbAEAAB/f4CBgnt6eXh3hoeIiXNzcnFwjo6PkGxra2pplZaWl2VkZGNinJ2dnl5dXFxbo6SlpVdWVVRUqqusra1PTk1MsbKztLRIR0ZFuLm6u7xBQD8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+Pz8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz++vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vj8/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/vr6+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr4/Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/P76+vr6+Pz8/Pz++vr6+Pz8/Pz++vr28QUJDREW4t7a1SUlKS0yxsK+uUFBRUlOpqainplhYWVqioaGgn19gYGGbmpmZmGZnZ2iUk5KSkW1ub2+NjIuKinR1dneGhYSDgnt8fX4=';
 
 // --- Post-process markdown to add code copy buttons ---
 function addCodeCopyButtons(html) {
@@ -105,8 +108,17 @@ async function updateTabInfo() {
       const url = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch { return ''; } })() : '';
       tabLabel.textContent = `${title} - ${url}`;
       loadConversation(newTabId);
+      refreshTaskUiForCurrentTab();
     }
-  } catch {}
+  } catch { }
+}
+
+function ensureConversation(tabId) {
+  if (!tabId) return null;
+  if (!conversations[tabId]) {
+    conversations[tabId] = { html: '', currentTaskText: '', currentModel: '', lastTaskInput: '' };
+  }
+  return conversations[tabId];
 }
 
 function saveConversation(tabId) {
@@ -114,17 +126,77 @@ function saveConversation(tabId) {
   const clone = messagesEl.cloneNode(true);
   const welc = clone.querySelector('.welcome');
   if (welc) welc.remove();
-  conversations[tabId] = { html: clone.innerHTML };
+  const conv = ensureConversation(tabId);
+  if (!conv) return;
+  conv.html = clone.innerHTML;
+  conv.currentTaskText = currentTaskText;
+  conv.currentModel = currentModel;
+  conv.lastTaskInput = lastTaskInput;
+}
+
+function restoreConversationState(tabId) {
+  const conv = ensureConversation(tabId);
+  currentTaskText = conv?.currentTaskText || '';
+  currentModel = conv?.currentModel || modelSelect.value;
+  lastTaskInput = conv?.lastTaskInput || '';
+}
+
+function renderMessageNode(type, html) {
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.innerHTML = html;
+  return div;
+}
+
+function appendMessageToConversation(tabId, type, html) {
+  const targetTabId = tabId || currentTabId;
+  if (!targetTabId) return null;
+
+  if (targetTabId === currentTabId) {
+    removeWelcome();
+    const el = addMsg(type, html);
+    saveConversation(targetTabId);
+    return el;
+  }
+
+  const conv = ensureConversation(targetTabId);
+  if (!conv) return null;
+  const temp = document.createElement('div');
+  temp.innerHTML = conv.html || '';
+  temp.appendChild(renderMessageNode(type, html));
+  conv.html = temp.innerHTML;
+  return null;
+}
+
+function resolveMessageTabId(msg) {
+  if (msg?.tabId) return msg.tabId;
+  if (msg?.taskId && taskTabMap[msg.taskId]) return taskTabMap[msg.taskId];
+  return currentTabId;
+}
+
+function refreshTaskUiForCurrentTab() {
+  const isCurrentTabRunning = Boolean(runningTaskId && runningTaskTabId === currentTabId);
+  toggleButtons(isCurrentTabRunning);
+  const progressContainer = document.getElementById('progressBarContainer');
+  if (!isCurrentTabRunning && progressContainer) {
+    progressContainer.style.display = 'none';
+  }
+  if (isCurrentTabRunning) {
+    setStatus('running', 'Running...');
+  } else {
+    setStatus('', 'Ready');
+  }
 }
 
 function loadConversation(tabId) {
   const conv = conversations[tabId];
   if (conv && conv.html) {
     messagesEl.innerHTML = conv.html;
-    rebindExampleBtns();
+    restoreConversationState(tabId);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   } else {
     showWelcome();
+    restoreConversationState(tabId);
   }
 }
 
@@ -143,11 +215,15 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
     const url = tab.url ? (() => { try { return new URL(tab.url).hostname; } catch { return ''; } })() : '';
     tabLabel.textContent = `${title} - ${url}`;
     loadConversation(tab.id);
+    refreshTaskUiForCurrentTab();
   });
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   delete conversations[tabId];
+  if (runningTaskTabId === tabId) {
+    runningTaskTabId = null;
+  }
 });
 
 // --- Model Selector ---
@@ -184,7 +260,7 @@ inputEl.addEventListener('input', () => {
 // --- Keyboard Shortcuts ---
 document.addEventListener('keydown', (e) => {
   // Escape = Stop task
-  if (e.key === 'Escape' && !sendBtn.classList.contains('hidden')) {
+  if (e.key === 'Escape' && !stopBtn.classList.contains('hidden')) {
     stopTask();
     return;
   }
@@ -211,7 +287,7 @@ function playCompletionSound() {
     if (data.soundEnabled !== false) { // Default is enabled
       const audio = new Audio(completionSound);
       audio.volume = 0.3;
-      audio.play().catch(() => {}); // Ignore errors (autoplay policy)
+      audio.play().catch(() => { }); // Ignore errors (autoplay policy)
     }
   });
 }
@@ -232,42 +308,62 @@ rebindExampleBtns();
 chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
     case 'task_start': {
-      removeWelcome();
-      currentTaskText = msg.text;
-      currentModel = msg.model || modelSelect.value;
-      lastTaskInput = msg.text;
-      addMsg('task', `<div class="label">Task</div>${escapeHtml(msg.text)}`);
-      setStatus('running', 'Running...');
-      toggleButtons(true);
+      const targetTabId = msg.tabId || currentTabId;
+      taskTabMap[msg.taskId] = targetTabId;
+      runningTaskId = msg.taskId;
+      runningTaskTabId = targetTabId;
+      const conv = ensureConversation(targetTabId);
+      if (conv) {
+        conv.currentTaskText = msg.text;
+        conv.currentModel = msg.model || modelSelect.value;
+        conv.lastTaskInput = msg.text;
+      }
+      if (targetTabId === currentTabId) {
+        currentTaskText = msg.text;
+        currentModel = msg.model || modelSelect.value;
+        lastTaskInput = msg.text;
+        setStatus('running', 'Running...');
+        toggleButtons(true);
+      }
+      appendMessageToConversation(targetTabId, 'task', `<div class="label">Task</div>${escapeHtml(msg.text)}`);
       // Reset progress bar
       const progressBar = document.getElementById('progressBarFill');
       const progressContainer = document.getElementById('progressBarContainer');
       if (progressBar) progressBar.style.width = '0%';
-      if (progressContainer) progressContainer.style.display = 'none';
+      if (progressContainer) progressContainer.style.display = targetTabId === currentTabId ? 'none' : progressContainer.style.display;
       break;
     }
 
     case 'progress': {
+      const targetTabId = resolveMessageTabId(msg);
+      if (targetTabId !== currentTabId) break;
       // Update status text and progress bar
       if (msg.text) setStatus('running', msg.text);
-      if (msg.percent !== undefined) {
+      const percent = msg.percent !== undefined
+        ? msg.percent
+        : (msg.step && msg.maxSteps ? Math.round((msg.step / msg.maxSteps) * 100) : undefined);
+      if (percent !== undefined) {
         const progressBar = document.getElementById('progressBarFill');
         const progressContainer = document.getElementById('progressBarContainer');
         if (progressBar && progressContainer) {
           progressContainer.style.display = 'block';
-          progressBar.style.width = msg.percent + '%';
+          progressBar.style.width = percent + '%';
         }
       }
       break;
     }
 
-    case 'thinking':
+    case 'thinking': {
+      const targetTabId = resolveMessageTabId(msg);
+      if (targetTabId !== currentTabId) break;
       removeThinking();
       addMsg('thinking', 'Thinking...');
       break;
+    }
 
     case 'tool_call': {
-      removeThinking();
+      const targetTabId = resolveMessageTabId(msg);
+      if (targetTabId === currentTabId) removeThinking();
       const icons = {
         navigate: '&#128279;', click: '&#128433;', type_text: '&#9000;',
         press_key: '&#9000;', scroll: '&#8595;', get_page: '&#128196;',
@@ -286,7 +382,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       const params = Object.entries(msg.params || {})
         .map(([k, v]) => `${k}="${typeof v === 'string' && v.length > 60 ? v.substring(0, 60) + '...' : v}"`)
         .join(' ');
-      addMsg('tool-call',
+      appendMessageToConversation(targetTabId, 'tool-call',
         `<span class="tool-icon">${icon}</span>
          <div><span class="tool-name">${escapeHtml(msg.tool)}</span>
          <div class="tool-params">${escapeHtml(params)}</div></div>`
@@ -295,63 +391,79 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
 
     case 'tool_result': {
+      const targetTabId = resolveMessageTabId(msg);
       const resultStr = typeof msg.result === 'string'
         ? msg.result
         : JSON.stringify(msg.result, null, 2);
       const isErr = resultStr.includes('"error"') || resultStr.includes('Error');
       const truncated = resultStr.substring(0, 1000) + (resultStr.length > 1000 ? '\n...' : '');
-      addMsg(`tool-result ${isErr ? 'err' : 'ok'}`, escapeHtml(truncated));
+      appendMessageToConversation(targetTabId, `tool-result ${isErr ? 'err' : 'ok'}`, escapeHtml(truncated));
       break;
     }
 
     case 'final_response': {
-      removeThinking();
-      const exportBtnHtml = '<button class="export-btn" title="Export result" data-text="' + escapeHtml(msg.text).replace(/"/g, '&quot;') + '" data-task="' + escapeHtml(currentTaskText).replace(/"/g, '&quot;') + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
+      const targetTabId = resolveMessageTabId(msg);
+      const conv = ensureConversation(targetTabId);
+      const exportTask = conv?.currentTaskText || currentTaskText;
+      const exportModel = conv?.currentModel || currentModel || modelSelect.value;
+      if (targetTabId === currentTabId) removeThinking();
+      const exportBtnHtml = '<button class="export-btn" title="Export result" data-text="' + escapeHtml(msg.text).replace(/"/g, '&quot;') + '" data-task="' + escapeHtml(exportTask).replace(/"/g, '&quot;') + '" data-model="' + escapeHtml(exportModel).replace(/"/g, '&quot;') + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>';
       const renderedMarkdown = addCodeCopyButtons(renderMarkdown(msg.text));
-      addMsg('response', `<div class="label">Result ${exportBtnHtml}</div>${renderedMarkdown}`);
-      // Bind export button
-      const exportBtn = messagesEl.querySelector('.export-btn:last-of-type');
-      if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-          const task = exportBtn.dataset.task;
-          const result = exportBtn.dataset.text;
-          const filename = `task-${Date.now()}.md`;
-          const content = `# Task\n${task}\n\n# Model\n${currentModel}\n\n# Date\n${new Date().toLocaleString()}\n\n# Result\n${result}\n`;
-          const blob = new Blob([content], { type: 'text/markdown' });
-          const url = URL.createObjectURL(blob);
-          chrome.downloads.download({ url, filename, saveAs: false }, () => URL.revokeObjectURL(url));
-        });
-      }
+      appendMessageToConversation(targetTabId, 'response', `<div class="label">Result ${exportBtnHtml}</div>${renderedMarkdown}`);
       break;
     }
 
-    case 'error':
-      removeThinking();
-      addMsg('error', escapeHtml(msg.text));
-      setStatus('error', 'Error');
-      toggleButtons(false);
+    case 'error': {
+      const targetTabId = resolveMessageTabId(msg);
+      if (targetTabId === currentTabId) {
+        removeThinking();
+        setStatus('error', 'Error');
+      }
+      appendMessageToConversation(targetTabId, 'error', escapeHtml(msg.text));
       break;
+    }
 
     case 'task_end': {
-      addMsg('task-end', `Task completed`);
-      setStatus('', 'Ready');
-      toggleButtons(false);
+      const targetTabId = resolveMessageTabId(msg);
+      let endText = 'Task completed';
+      let endStatus = 'Ready';
+      if (msg.reason === 'tab_closed') {
+        endText = 'Task stopped because the controlled tab was closed';
+        endStatus = 'Tab closed';
+      } else if (msg.stopped) {
+        endText = 'Stopped by user';
+        endStatus = 'Stopped';
+      }
+      appendMessageToConversation(targetTabId, 'task-end', endText);
+      if (targetTabId === currentTabId) {
+        setStatus('', endStatus);
+        toggleButtons(false);
+      }
+      if (msg.taskId) delete taskTabMap[msg.taskId];
+      if (runningTaskId === msg.taskId) {
+        runningTaskId = null;
+        runningTaskTabId = null;
+      }
       // Hide progress bar
       const progressContainer = document.getElementById('progressBarContainer');
-      if (progressContainer) progressContainer.style.display = 'none';
+      if (progressContainer && targetTabId === currentTabId) progressContainer.style.display = 'none';
       // Play completion sound
-      playCompletionSound();
+      if (!msg.stopped) playCompletionSound();
       break;
     }
 
     case 'incoming_task':
       inputEl.value = msg.text;
-      startTask();
+      startTask(msg.tabId || currentTabId);
       break;
 
     // --- ask_user: Agent needs human input ---
     case 'ask_user': {
-      removeThinking();
+      const targetTabId = resolveMessageTabId(msg);
+      if (targetTabId === currentTabId) {
+        removeThinking();
+        setStatus('running', 'Waiting for input...');
+      }
       // Build options buttons HTML (safe: options come from AI tool call, escaped)
       let optionsHtml = '';
       if (msg.options && msg.options.length > 0) {
@@ -359,93 +471,79 @@ chrome.runtime.onMessage.addListener((msg) => {
           msg.options.map(o => '<button class="ask-option-btn">' + escapeHtml(o) + '</button>').join('') +
           '</div>';
       }
-      addMsg('ask-user',
+      appendMessageToConversation(targetTabId, 'ask-user',
         '<div class="label">Agent asks</div>' +
+        '<div class="ask-user-body" data-confirm="' + String(Boolean(msg.confirm)) + '" data-tab-id="' + escapeHtml(String(targetTabId || '')) + '" data-task-id="' + escapeHtml(String(msg.taskId || '')) + '">' +
         '<p>' + escapeHtml(msg.question) + '</p>' +
         optionsHtml +
         '<div class="ask-user-input">' +
-        '<input type="text" id="askUserInput" placeholder="Or type a custom response..." />' +
-        '<button id="askUserBtn">Send</button>' +
+        '<input type="text" class="ask-user-input-field" placeholder="Or type a custom response..." />' +
+        '<button class="ask-user-send-btn">Send</button>' +
+        '</div>' +
         '</div>'
       );
-      // Bind option buttons
-      document.querySelectorAll('.ask-option-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const val = btn.textContent;
-          chrome.runtime.sendMessage({ type: 'user_response', text: val });
-          addMsg('tool-result ok', escapeHtml(val));
-          // Disable all options and input
-          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; b.classList.add('selected-off'); });
-          btn.classList.remove('selected-off');
-          btn.classList.add('selected');
-          const inp = document.getElementById('askUserInput');
-          const btn2 = document.getElementById('askUserBtn');
-          if (inp) inp.disabled = true;
-          if (btn2) btn2.disabled = true;
-        });
-      });
-      const askInput = document.getElementById('askUserInput');
-      const askBtn = document.getElementById('askUserBtn');
-      const sendResponse = () => {
-        const val = askInput.value.trim();
-        if (val) {
-          chrome.runtime.sendMessage({ type: 'user_response', text: val });
-          addMsg('tool-result ok', escapeHtml(val));
-          askInput.disabled = true;
-          askBtn.disabled = true;
-          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; });
-        }
-      };
-      askBtn.addEventListener('click', sendResponse);
-      askInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendResponse();
-      });
       break;
     }
 
     // --- Recording ---
     case 'record_frame':
-      setStatus('running', `Grabando... (${msg.count} frames)`);
+      if (resolveMessageTabId(msg) === currentTabId) {
+        setStatus('running', `Grabando... (${msg.count} frames)`);
+      }
       break;
 
     case 'record_done':
-      addMsg('tool-result ok', `Grabacion completada: ${msg.frames} frames capturados`);
+      appendMessageToConversation(resolveMessageTabId(msg), 'tool-result ok', `Grabacion completada: ${msg.frames} frames capturados`);
       break;
   }
 });
 
 // --- Actions ---
 
-function startTask() {
+function startTask(targetTabId = currentTabId) {
   const task = inputEl.value.trim();
   if (!task && pendingImages.length === 0) return;
 
-  taskIdCounter++;
+  const nextTaskId = ++taskIdCounter;
   const images = [...pendingImages];
-  pendingImages = [];
-  renderPreviews();
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-
   chrome.runtime.sendMessage({
     type: 'run_task',
     task: task || 'Analyze these images',
-    taskId: taskIdCounter,
+    taskId: nextTaskId,
     model: modelSelect.value,
-    images
+    images,
+    tabId: targetTabId
+  }, (res) => {
+    if (chrome.runtime.lastError || !res?.success) {
+      setStatus('error', res?.error || chrome.runtime.lastError?.message || 'Could not start task');
+      return;
+    }
+    pendingImages = [];
+    renderPreviews();
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
   });
 }
 
 function stopTask() {
-  chrome.runtime.sendMessage({ type: 'stop_task' });
-  addMsg('task-end', 'Stopped by user');
-  setStatus('', 'Stopped');
-  toggleButtons(false);
+  chrome.runtime.sendMessage({ type: 'stop_task' }, (res) => {
+    if (chrome.runtime.lastError || !res?.success) {
+      setStatus('error', res?.error || chrome.runtime.lastError?.message || 'No active task');
+      return;
+    }
+    setStatus('', 'Stopping...');
+    stopBtn.disabled = true;
+  });
 }
 
 function clearMessages() {
   showWelcome();
-  if (currentTabId) conversations[currentTabId] = { html: '' };
+  if (currentTabId) {
+    conversations[currentTabId] = { html: '', currentTaskText: '', currentModel: '', lastTaskInput: '' };
+  }
+  currentTaskText = '';
+  currentModel = modelSelect.value;
+  lastTaskInput = '';
 }
 
 // --- Auto-scroll Toggle ---
@@ -465,11 +563,83 @@ autoScrollToggle.addEventListener('click', () => {
   chrome.storage.local.set({ autoScrollEnabled });
 });
 
+function lockAskUserMessage(askMsgEl, selectedBtn = null) {
+  if (!askMsgEl || askMsgEl.dataset.answered === 'true') return;
+  askMsgEl.dataset.answered = 'true';
+  askMsgEl.querySelectorAll('.ask-option-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn === selectedBtn) {
+      btn.classList.add('selected');
+      btn.classList.remove('selected-off');
+    } else {
+      btn.classList.add('selected-off');
+    }
+  });
+  const askInput = askMsgEl.querySelector('.ask-user-input-field');
+  const askBtn = askMsgEl.querySelector('.ask-user-send-btn');
+  if (askInput) askInput.disabled = true;
+  if (askBtn) askBtn.disabled = true;
+}
+
+function submitAskUserResponse(askMsgEl, value, selectedBtn = null) {
+  if (!askMsgEl || askMsgEl.dataset.answered === 'true') return;
+  const text = String(value || '').trim();
+  if (!text) return;
+
+  const askBody = askMsgEl.querySelector('.ask-user-body');
+  const confirm = askBody?.dataset.confirm === 'true';
+  const targetTabId = Number(askBody?.dataset.tabId) || currentTabId;
+  chrome.runtime.sendMessage({ type: 'user_response', text, confirm }, (res) => {
+    if (chrome.runtime.lastError || !res?.success) {
+      setStatus('error', res?.error || chrome.runtime.lastError?.message || 'Could not send response');
+      return;
+    }
+    lockAskUserMessage(askMsgEl, selectedBtn);
+    appendMessageToConversation(targetTabId, 'tool-result ok', escapeHtml(text));
+  });
+}
+
+messagesEl.addEventListener('click', (e) => {
+  const exportBtn = e.target.closest('.export-btn');
+  if (exportBtn) {
+    const task = exportBtn.dataset.task || '';
+    const result = exportBtn.dataset.text || '';
+    const model = exportBtn.dataset.model || modelSelect.value;
+    const filename = `task-${Date.now()}.md`;
+    const content = `# Task\n${task}\n\n# Model\n${model}\n\n# Date\n${new Date().toLocaleString()}\n\n# Result\n${result}\n`;
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    chrome.downloads.download({ url, filename, saveAs: false }, () => URL.revokeObjectURL(url));
+    return;
+  }
+
+  const askOptionBtn = e.target.closest('.ask-option-btn');
+  if (askOptionBtn) {
+    const askMsgEl = askOptionBtn.closest('.msg.ask-user');
+    submitAskUserResponse(askMsgEl, askOptionBtn.textContent, askOptionBtn);
+    return;
+  }
+
+  const askSendBtn = e.target.closest('.ask-user-send-btn');
+  if (askSendBtn) {
+    const askMsgEl = askSendBtn.closest('.msg.ask-user');
+    const askInput = askMsgEl?.querySelector('.ask-user-input-field');
+    submitAskUserResponse(askMsgEl, askInput?.value || '');
+  }
+});
+
+messagesEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.classList.contains('ask-user-input-field')) return;
+  e.preventDefault();
+  const askMsgEl = e.target.closest('.msg.ask-user');
+  submitAskUserResponse(askMsgEl, e.target.value || '');
+});
+
 // --- Code Copy Button Handler ---
 function bindCodeCopyButtons() {
   messagesEl.querySelectorAll('.code-block-copy').forEach(btn => {
-    if (btn.dataset.bound) return; // Skip already bound buttons
-    btn.dataset.bound = 'true';
+    if (btn.__zAiBound) return;
+    btn.__zAiBound = true;
 
     btn.addEventListener('click', () => {
       const codeBlock = btn.closest('.code-block-wrapper');
@@ -504,6 +674,7 @@ function addMsg(type, html) {
   div.innerHTML = html;
   messagesEl.appendChild(div);
   if (autoScrollEnabled) messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
 }
 
 function removeThinking() {
@@ -524,6 +695,7 @@ function setStatus(cls, text) {
 function toggleButtons(isRunning) {
   sendBtn.classList.toggle('hidden', isRunning);
   stopBtn.classList.toggle('hidden', !isRunning);
+  stopBtn.disabled = false;
   inputEl.disabled = isRunning;
 }
 

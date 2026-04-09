@@ -13,20 +13,14 @@
             theme: {
                 extend: {
                     colors: {
-                        'z-bg-base': '#0a0a0f',
-                        'z-bg-surface': '#111118',
-                        'z-bg-card': '#1a1a24',
-                        'z-bg-tertiary': '#22222e',
-                        'z-accent': '#6366f1',
-                        'z-accent-hover': '#818cf8',
-                        'z-text-primary': '#f0f0f5',
-                        'z-text-secondary': '#a0a0b0',
-                        'z-text-muted': '#606070',
-                        'z-border': 'rgba(255,255,255,0.08)',
-                        'z-border-heavy': 'rgba(255,255,255,0.12)',
-                        'z-success': '#22c55e',
-                        'z-error': '#ef4444',
-                        'z-warning': '#f59e0b'
+                        primary: "#8b5cf6",
+                        accent: "#f472b6",
+                        background: "#05050A",
+                        surface: "rgba(18, 18, 25, 0.6)",
+                        elevated: "rgba(28, 28, 38, 0.5)",
+                        border: "rgba(255,255,255,0.08)",
+                        muted: "#848a97",
+                        secondary: "#caced5"
                     },
                     borderRadius: {
                         "DEFAULT": "0.5rem",
@@ -78,13 +72,13 @@
   </head>
 <body class="bg-z-bg-base text-z-text-primary font-body antialiased flex flex-col h-screen max-w-[400px] mx-auto border-x border-z-border overflow-hidden">
 <!-- TopAppBar (Shared Component Logic) -->
-<header class="bg-[#0a0a0f] border-b border-white/10 flex items-center justify-between px-3 h-12 w-full max-w-[400px] shrink-0 z-50">
+<header class="bg-[#05050A] [background-image:radial-gradient(circle_at_-10%_-10%,_rgba(139,92,246,0.1),_transparent_40%),_radial-gradient(circle_at_110%_110%,_rgba(236,72,153,0.1),_transparent_40%)] border-b border-white/10 flex items-center justify-between px-3 h-12 w-full max-w-[400px] shrink-0 z-50">
 <div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-[#6366f1]" data-icon="smart_toy">smart_toy</span>
+<span class="material-symbols-outlined text-primary" data-icon="smart_toy">smart_toy</span>
 <span class="text-lg font-bold text-[#f0f0f5] tracking-tight font-headline">Z AI Agent</span>
 </div>
 <div class="flex items-center gap-1">
-<span class="font-['Space_Grotesk'] text-[13px] tracking-tight text-[#6366f1] px-2 py-0.5 rounded bg-white/5 border border-white/10">GLM-5.1</span>
+<span class="font-['Space_Grotesk'] text-[13px] tracking-tight text-primary px-2 py-0.5 rounded bg-white/5 border border-white/10">GLM-5.1</span>
 <button class="p-1.5 rounded hover:bg-white/5 transition-colors text-[#a0a0b0] active:scale-95 duration-200">
 <span class="material-symbols-outlined">add</span>
 </button>

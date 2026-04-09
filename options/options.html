@@ -85,7 +85,7 @@
         <div class="field">
           <label for="schedTaskInput">Task</label>
           <div class="textarea-with-action">
-            <textarea id="schedTaskInput" rows="2" placeholder="Describe the task to run automatically..."></textarea>
+            <textarea id="schedTaskInput" rows="2" maxlength="500" placeholder="Describe the task to run automatically..."></textarea>
             <button class="btn-improve" id="improvePromptBtn" title="AI improves your prompt: fixes spelling, grammar, and makes it clearer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
               Improve
@@ -136,7 +136,7 @@
       </div>
       <div class="field">
         <label for="templateTaskInput">Task</label>
-        <textarea id="templateTaskInput" rows="2" placeholder="Describe a task to save as template..."></textarea>
+        <textarea id="templateTaskInput" rows="2" maxlength="500" placeholder="Describe a task to save as template..."></textarea>
       </div>
       <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
         <div style="flex:1">
@@ -172,6 +172,13 @@
           <span>Sound notifications</span>
         </label>
         <p class="hint">Play sound when task completes</p>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="devMode" style="width:auto;margin:0" />
+          <span>Developer mode</span>
+        </label>
+        <p class="hint">Allow localhost and private network access for testing</p>
       </div>
     </details>
   </main>

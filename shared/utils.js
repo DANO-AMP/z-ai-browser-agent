@@ -7,9 +7,14 @@
  * @returns {string} Formatted interval (e.g., "30 min", "2 hr", "1 day")
  */
 function formatInterval(min) {
+  if (!min || min <= 0) return '0 min';
   if (min < 60) return min + ' min';
-  if (min < 1440) return (min / 60) + ' hr';
-  return (min / 1440) + ' day';
+  if (min < 1440) {
+    const h = min / 60;
+    return (h === Math.floor(h) ? h : h.toFixed(1)) + ' hr';
+  }
+  const d = min / 1440;
+  return (d === Math.floor(d) ? d : d.toFixed(1)) + ' day' + (d >= 2 ? 's' : '');
 }
 
 /**
@@ -20,6 +25,21 @@ function formatInterval(min) {
 function escapeHtml(text) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
   return String(text).replace(/[&<>"]/g, c => map[c]);
+}
+
+/**
+ * Sanitize markdown link URLs before inserting them into the DOM
+ * @param {string} url - Candidate URL from markdown
+ * @returns {string} Safe URL or "#" if blocked
+ */
+function sanitizeLinkUrl(url) {
+  try {
+    const parsed = new URL(url, 'https://example.invalid');
+    const allowed = ['http:', 'https:', 'mailto:'];
+    return allowed.includes(parsed.protocol) ? url : '#';
+  } catch {
+    return '#';
+  }
 }
 
 /**
@@ -51,7 +71,8 @@ function renderMarkdown(text) {
   html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
 
   // Links [text](url)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) =>
+    `<a href="${escapeHtml(sanitizeLinkUrl(url))}" target="_blank" rel="noopener">${label}</a>`);
 
   // Horizontal rules ---
   html = html.replace(/^---$/gm, '<hr>');
@@ -112,9 +133,11 @@ function isUrlSafe(url, devMode = false) {
   }
 }
 
-// Export for global scope (loaded via <script> tags)
-window.formatInterval = formatInterval;
-window.escapeHtml = escapeHtml;
-window.renderMarkdown = renderMarkdown;
-window.jsStr = jsStr;
-window.isUrlSafe = isUrlSafe;
+// Export for global scope (loaded via <script> tags or importScripts)
+const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
+_globalObj.formatInterval = formatInterval;
+_globalObj.escapeHtml = escapeHtml;
+_globalObj.renderMarkdown = renderMarkdown;
+_globalObj.jsStr = jsStr;
+_globalObj.isUrlSafe = isUrlSafe;
+_globalObj.sanitizeLinkUrl = sanitizeLinkUrl;

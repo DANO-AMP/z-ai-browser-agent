@@ -23,14 +23,14 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: "#6366f1",
-                        accent: "#818cf8",
-                        background: "#0a0a0f",
-                        surface: "#111118",
-                        elevated: "#1a1a24",
-                        border: "rgba(255,255,255,0.06)",
-                        muted: "#606070",
-                        secondary: "#a0a0b0"
+                        primary: "#8b5cf6",
+                        accent: "#f472b6",
+                        background: "#05050A",
+                        surface: "rgba(18, 18, 25, 0.6)",
+                        elevated: "rgba(28, 28, 38, 0.5)",
+                        border: "rgba(255,255,255,0.08)",
+                        muted: "#848a97",
+                        secondary: "#caced5"
                     },
                     borderRadius: {
                         "DEFAULT": "0.5rem",
@@ -50,7 +50,7 @@
 </head>
 <body class="font-body selection:bg-primary/30">
 <!-- TopNavBar from JSON -->
-<nav class="bg-[#0a0a0f] dark:bg-[#0a0a0f] border-white/5 border-b sticky top-0 z-50">
+<nav class="bg-[#05050A] [background-image:radial-gradient(circle_at_-10%_-10%,_rgba(139,92,246,0.1),_transparent_40%),_radial-gradient(circle_at_110%_110%,_rgba(236,72,153,0.1),_transparent_40%)] dark:bg-[#05050A] [background-image:radial-gradient(circle_at_-10%_-10%,_rgba(139,92,246,0.1),_transparent_40%),_radial-gradient(circle_at_110%_110%,_rgba(236,72,153,0.1),_transparent_40%)] border-white/5 border-b sticky top-0 z-50">
 <div class="flex justify-between items-center h-14 px-6 w-full max-w-[520px] mx-auto">
 <div class="flex items-center gap-2">
 <span class="text-lg font-bold tracking-tight text-[#f0f0f5] font-['Space_Grotesk']">Z AI Agent</span>
@@ -59,7 +59,7 @@
 <button class="text-[#a0a0b0] hover:bg-white/5 hover:text-[#818cf8] transition-colors p-1.5 rounded active:scale-95 duration-200">
 <span class="material-symbols-outlined text-[20px]">help</span>
 </button>
-<button class="text-[#6366f1] font-semibold hover:bg-white/5 transition-colors p-1.5 rounded active:scale-95 duration-200">
+<button class="text-primary font-semibold hover:bg-white/5 transition-colors p-1.5 rounded active:scale-95 duration-200">
 <span class="material-symbols-outlined text-[20px]">settings</span>
 </button>
 </div>
@@ -81,26 +81,26 @@
 <!-- Settings Grid -->
 <div class="space-y-6">
 <!-- API CONFIGURATION Card -->
-<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<section class="bg-surface backdrop-blur-md border border-white/5 rounded-lg p-5">
 <header class="mb-5">
 <h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">API CONFIGURATION</h2>
 </header>
 <div class="space-y-4">
 <div class="space-y-2">
 <label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Auth Token</label>
-<input class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-muted" placeholder="••••••••••••••••••••••••" type="password"/>
+<input class="w-full bg-elevated backdrop-blur-lg border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-muted" placeholder="••••••••••••••••••••••••" type="password"/>
 <p class="text-[11px] text-muted leading-relaxed italic">
                             Found in ~/.claude/settings.json under ANTHROPIC_AUTH_TOKEN
                         </p>
 </div>
 <div class="space-y-2">
 <label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Endpoint</label>
-<input class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="https://api.anthropic.com/v1"/>
+<input class="w-full bg-elevated backdrop-blur-lg border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="https://api.anthropic.com/v1"/>
 </div>
 <div class="space-y-2">
 <label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">Model</label>
 <div class="relative">
-<select class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none appearance-none transition-all">
+<select class="w-full bg-elevated backdrop-blur-lg border border-white/5 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary focus:border-primary outline-none appearance-none transition-all">
 <option>GLM-5.1 Recommended</option>
 <option>GLM-5-Turbo</option>
 </select>
@@ -110,17 +110,17 @@
 </div>
 </section>
 <!-- AGENT Card -->
-<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<section class="bg-surface backdrop-blur-md border border-white/5 rounded-lg p-5">
 <header class="mb-5">
 <h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">AGENT</h2>
 </header>
 <div class="space-y-2">
 <label class="block text-[11px] text-secondary font-medium uppercase tracking-wider">System Prompt</label>
-<textarea class="w-full bg-[#1a1a24] border border-white/5 rounded-md px-3 py-2 text-[13px] font-mono focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all resize-none placeholder:text-muted" placeholder="Leave empty for default" rows="4"></textarea>
+<textarea class="w-full bg-elevated backdrop-blur-lg border border-white/5 rounded-md px-3 py-2 text-[13px] font-mono focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all resize-none placeholder:text-muted" placeholder="Leave empty for default" rows="4"></textarea>
 </div>
 </section>
 <!-- HOW TO GET YOUR TOKEN Card -->
-<section class="bg-[#111118] border border-white/5 rounded-lg p-5">
+<section class="bg-surface backdrop-blur-md border border-white/5 rounded-lg p-5">
 <header class="mb-5">
 <h2 class="text-primary text-[11px] font-bold tracking-widest font-mono uppercase">HOW TO GET YOUR TOKEN</h2>
 </header>
@@ -145,7 +145,7 @@
 </section>
 </div>
 <!-- Sticky Action Bar -->
-<div class="fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/80 backdrop-blur-md border-t border-white/5 py-4 px-6 z-50">
+<div class="fixed bottom-0 left-0 right-0 bg-[#05050A] [background-image:radial-gradient(circle_at_-10%_-10%,_rgba(139,92,246,0.1),_transparent_40%),_radial-gradient(circle_at_110%_110%,_rgba(236,72,153,0.1),_transparent_40%)]/80 backdrop-blur-md border-t border-white/5 py-4 px-6 z-50">
 <div class="max-w-[520px] mx-auto flex items-center justify-between">
 <div class="flex items-center gap-2 text-[#22c55e] text-[13px] font-medium animate-pulse">
 <span class="material-symbols-outlined text-[18px]">check_circle</span>
@@ -163,13 +163,13 @@
 </div>
 </main>
 <!-- SideNavBar (Hidden on desktop settings but referenced in JSON) -->
-<aside class="hidden lg:flex flex-col p-4 gap-2 fixed left-0 h-full border-r border-white/5 w-64 bg-[#0a0a0f]">
+<aside class="hidden lg:flex flex-col p-4 gap-2 fixed left-0 h-full border-r border-white/5 w-64 bg-[#05050A] [background-image:radial-gradient(circle_at_-10%_-10%,_rgba(139,92,246,0.1),_transparent_40%),_radial-gradient(circle_at_110%_110%,_rgba(236,72,153,0.1),_transparent_40%)]">
 <div class="mb-8 px-2">
 <h3 class="font-['Space_Grotesk'] uppercase tracking-widest text-[11px] text-[#606070] mb-1">Settings</h3>
 <p class="text-[#a0a0b0] text-[11px]">Manage extension preferences</p>
 </div>
 <nav class="space-y-1">
-<div class="text-[#6366f1] bg-[#1a1a24] rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer">
+<div class="text-primary bg-elevated backdrop-blur-lg rounded-lg flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer">
 <span class="material-symbols-outlined text-[20px]">tune</span>
 <span>General</span>
 </div>
