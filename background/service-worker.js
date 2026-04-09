@@ -1482,8 +1482,6 @@ async function executeTool(tabId, tool, params) {
           // Timeout after 5 minutes
           setTimeout(() => { _pendingResolves.delete(rid); resolve('Sin respuesta (timeout)'); }, 300000);
         });
-        askUserResolve = null;
-        });
         return { text: `User responded: ${response}` };
       }
 
@@ -1829,7 +1827,6 @@ async function isUrlSafe(url) {
 async function isUrlSafeAsync(url) {
   const config = await getConfig();
   return isUrlSafe(url, config.devMode);
-}
 }
 
 // User confirmation helper for sensitive operations
