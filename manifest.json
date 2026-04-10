@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Z AI Browser Agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Agente de automatizacion del navegador con IA. Toma control del browser y ejecuta tareas automaticamente.",
   "permissions": [
     "storage",

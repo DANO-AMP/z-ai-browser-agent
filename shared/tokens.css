@@ -1,59 +1,69 @@
-/* Z AI Browser Agent — Design Tokens (Premium) */
+/* Z AI Browser Agent — Design Tokens (Premium v2) */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   /* Background scale */
-  --bg-primary: #05050A;
-  --bg-secondary: rgba(18, 18, 25, 0.6);
-  --bg-tertiary: rgba(28, 28, 38, 0.5);
-  --bg-elevated: #1e1e28;
-  --bg-glass: rgba(255, 255, 255, 0.03);
+  --bg-primary: #06060c;
+  --bg-secondary: rgba(16, 16, 24, 0.65);
+  --bg-tertiary: rgba(24, 24, 36, 0.5);
+  --bg-elevated: #1c1c2a;
+  --bg-glass: rgba(255, 255, 255, 0.025);
+  --bg-glass-hover: rgba(255, 255, 255, 0.05);
 
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-default: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.14);
 
   /* Text */
-  --text-primary: #ffffff;
-  --text-secondary: #caced5;
-  --text-muted: #848a97;
+  --text-primary: #f0f0f5;
+  --text-secondary: #b0b4c0;
+  --text-muted: #6b7080;
 
   /* Accent */
   --accent: #8b5cf6;
   --accent-hover: #a78bfa;
   --accent-secondary: #ec4899;
-  --accent-dim: rgba(139, 92, 246, 0.15);
-  --accent-glow: rgba(139, 92, 246, 0.35);
-  --accent-border: rgba(139, 92, 246, 0.3);
+  --accent-dim: rgba(139, 92, 246, 0.12);
+  --accent-glow: rgba(139, 92, 246, 0.30);
+  --accent-border: rgba(139, 92, 246, 0.25);
 
   /* Status */
   --success: #10b981;
-  --success-dim: rgba(16, 185, 129, 0.1);
-  --success-border: rgba(16, 185, 129, 0.25);
+  --success-dim: rgba(16, 185, 129, 0.08);
+  --success-border: rgba(16, 185, 129, 0.20);
   --error: #f43f5e;
-  --error-dim: rgba(244, 63, 94, 0.1);
-  --error-border: rgba(244, 63, 94, 0.2);
-  --warning: #fbbf24;
+  --error-dim: rgba(244, 63, 94, 0.08);
+  --error-border: rgba(244, 63, 94, 0.18);
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.18);
 
   /* Radius */
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-max: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-glow-lg: 0 0 40px var(--accent-glow), 0 0 80px rgba(139, 92, 246, 0.1);
 
   /* Fonts */
   --font-primary: 'Outfit', system-ui, sans-serif;
   --font-secondary: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'SF Mono', monospace;
-  
-  --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 0.15s var(--ease-out-expo);
+  --transition-smooth: 0.35s var(--ease-out-expo);
+  --transition-slow: 0.6s var(--ease-out-expo);
 }
