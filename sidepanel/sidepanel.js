@@ -114,8 +114,8 @@ function connectPort() {
   try {
     panelPort = chrome.runtime.connect({ name: 'z-ai-panel' });
     panelPort.onMessage.addListener(msg => {
-      // heartbeat_ack is silent — just confirms SW is alive
       if (msg.type === 'heartbeat_ack') return;
+      handleBgMessage(msg);
     });
     panelPort.onDisconnect.addListener(() => {
       panelPort = null;
@@ -443,7 +443,7 @@ rebindExampleBtns();
 
 // --- Listen for messages from background ---
 
-chrome.runtime.onMessage.addListener((msg) => {
+function handleBgMessage(msg) {
   switch (msg.type) {
     case 'task_start': {
       const targetTabId = msg.tabId || currentTabId;
@@ -707,7 +707,8 @@ chrome.runtime.onMessage.addListener((msg) => {
       appendMessageToConversation(resolveMessageTabId(msg), 'tool-result ok', `Grabacion completada: ${msg.frames} frames capturados`);
       break;
   }
-});
+}
+chrome.runtime.onMessage.addListener(handleBgMessage);
 
 // --- Actions ---
 
