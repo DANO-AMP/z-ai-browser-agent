@@ -378,3 +378,28 @@ function loadTemplates() {
 
 // Load templates on page open
 loadTemplates();
+
+// --- UPDATE BANNER ---
+const updateBannerEl = document.getElementById('updateBanner');
+const updateTextEl = document.getElementById('updateText');
+const updateLinkEl = document.getElementById('updateLink');
+const updateDismissEl = document.getElementById('updateDismiss');
+
+function showUpdateBanner(info) {
+  if (!info || !info.updateAvailable) return;
+  if (info.dismissed && info.dismissedVersion === info.latestVersion) return;
+  updateTextEl.textContent = `v${info.latestVersion} available (you have v${info.currentVersion})`;
+  updateLinkEl.href = info.releaseUrl || '#';
+  updateBannerEl.classList.remove('hidden');
+}
+
+updateDismissEl.addEventListener('click', () => {
+  updateBannerEl.classList.add('hidden');
+  chrome.runtime.sendMessage({ type: 'dismiss_update' });
+});
+
+// Check for updates on page open
+chrome.runtime.sendMessage({ type: 'get_update_info' }, function(info) {
+  if (chrome.runtime.lastError || !info) return;
+  showUpdateBanner(info);
+});

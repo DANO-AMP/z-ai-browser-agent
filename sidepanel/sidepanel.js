@@ -161,6 +161,31 @@ chrome.runtime.sendMessage({ type: 'get_queue' }, function(res) {
   updateQueueBadge();
 });
 
+// --- Update Banner ---
+const updateBanner = document.getElementById('updateBanner');
+const updateText = document.getElementById('updateText');
+const updateLink = document.getElementById('updateLink');
+const updateDismiss = document.getElementById('updateDismiss');
+
+function showUpdateBanner(info) {
+  if (!info || !info.updateAvailable) return;
+  if (info.dismissed && info.dismissedVersion === info.latestVersion) return;
+  updateText.textContent = `v${info.latestVersion} available (you have v${info.currentVersion})`;
+  updateLink.href = info.releaseUrl || '#';
+  updateBanner.classList.remove('hidden');
+}
+
+updateDismiss.addEventListener('click', () => {
+  updateBanner.classList.add('hidden');
+  chrome.runtime.sendMessage({ type: 'dismiss_update' });
+});
+
+// Check for updates on panel open
+chrome.runtime.sendMessage({ type: 'get_update_info' }, function(info) {
+  if (chrome.runtime.lastError || !info) return;
+  showUpdateBanner(info);
+});
+
 // --- Tab Tracking ---
 
 async function updateTabInfo() {
@@ -624,6 +649,10 @@ chrome.runtime.onMessage.addListener((msg) => {
       updateQueueBadge();
       break;
     }
+
+    case 'update_available':
+      showUpdateBanner(msg);
+      break;
 
     case 'incoming_task':
       inputEl.value = msg.text;

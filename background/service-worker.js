@@ -453,6 +453,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     removeScheduledTask(msg.index).then(() => sendResponse({ success: true }));
     return true;
   }
+  else if (msg.type === 'get_update_info') {
+    chrome.storage.local.get(UPDATE_KEY, (data) => {
+      sendResponse(data[UPDATE_KEY] || null);
+    });
+    return true;
+  }
+  else if (msg.type === 'check_updates') {
+    checkForUpdates().then(() => {
+      chrome.storage.local.get(UPDATE_KEY, (data) => {
+        sendResponse(data[UPDATE_KEY] || null);
+      });
+    });
+    return true;
+  }
+  else if (msg.type === 'dismiss_update') {
+    chrome.storage.local.get(UPDATE_KEY, (data) => {
+      const info = data[UPDATE_KEY];
+      if (info) {
+        info.dismissed = true;
+        info.dismissedVersion = info.latestVersion;
+        chrome.storage.local.set({ [UPDATE_KEY]: info });
+      }
+      sendResponse({ success: true });
+    });
+    return true;
+  }
   return true;
 });
 
@@ -509,9 +535,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // Chrome MV3 kills the SW after ~30s idle. A sub-minute alarm forces it to wake
 // every 24 seconds, keeping long-running task chains alive all day.
 const KEEPALIVE_ALARM  = 'z-ai-keepalive';
+const UPDATE_ALARM     = 'z-ai-update-check';
 const SCHEDULED_PREFIX = 'z-ai-task-';
 const QUEUE_KEY        = 'z_ai_task_queue';
 const CHECKPOINT_KEY   = 'z_ai_checkpoint';
+const UPDATE_KEY       = 'z_ai_update_info';
+const GITHUB_REPO      = 'DANO-AMP/z-ai-browser-agent';
 
 // --- Persistent Queue helpers (Phase 2) ---
 
@@ -609,6 +638,48 @@ async function removeScheduledTask(index) {
   }
 }
 
+// --- Update Check ---
+// Compares local version with latest GitHub release (once per day)
+
+function compareVersions(a, b) {
+  const pa = a.replace(/^v/, '').split('.').map(Number);
+  const pb = b.replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na < nb) return -1;
+    if (na > nb) return 1;
+  }
+  return 0;
+}
+
+async function checkForUpdates() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) return;
+    const release = await res.json();
+    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+    const currentVersion = chrome.runtime.getManifest().version;
+    const updateAvailable = compareVersions(currentVersion, latestVersion) < 0;
+    const info = {
+      latestVersion,
+      currentVersion,
+      updateAvailable,
+      releaseUrl: release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+      releaseName: release.name || `v${latestVersion}`,
+      checkedAt: Date.now()
+    };
+    await chrome.storage.local.set({ [UPDATE_KEY]: info });
+    if (updateAvailable) {
+      broadcast({ type: 'update_available', ...info });
+    }
+  } catch (e) {
+    console.warn('[Z AI] Update check failed:', e.message);
+  }
+}
+
 // --- Unified Alarm Handler ---
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   // 1. Keep-alive ping — just waking the SW is enough
@@ -624,7 +695,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
 
-  // 2. Scheduled (cron) task
+  // 2. Daily update check
+  if (alarm.name === UPDATE_ALARM) {
+    checkForUpdates();
+    return;
+  }
+
+  // 3. Scheduled (cron) task
   if (alarm.name.startsWith(SCHEDULED_PREFIX)) {
     const data = await chrome.storage.local.get(['scheduledTasks']);
     const tasks = data.scheduledTasks || [];
@@ -648,7 +725,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.4 }); // ~24s
   }
 
-  // 2. Restore scheduled task alarms without clearing the keepalive
+  // 2. Ensure daily update check alarm exists
+  const updateAlarm = await chrome.alarms.get(UPDATE_ALARM);
+  if (!updateAlarm) {
+    chrome.alarms.create(UPDATE_ALARM, { delayInMinutes: 1, periodInMinutes: 1440 }); // check in 1min, then daily
+  }
+  // Run initial update check on startup (non-blocking)
+  checkForUpdates();
+
+  // 3. Restore scheduled task alarms without clearing the keepalive
   const data = await chrome.storage.local.get(['scheduledTasks']);
   const tasks = data.scheduledTasks || [];
   for (const t of tasks) {
