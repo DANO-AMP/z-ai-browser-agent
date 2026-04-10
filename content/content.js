@@ -16,15 +16,21 @@
     info: console.info.bind(console)
   };
 
+  const MAX_LOG_TEXT = 2000; // Prevent oversized log entries from bloating memory
+
   function capture(level, args) {
-    window.__zAiLogs.push({
-      level,
-      text: args.map(a => {
-        try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }
-        catch { return String(a); }
-      }).join(' '),
-      time: Date.now()
-    });
+    let text = args.map(a => {
+      try {
+        if (typeof a === 'object') {
+          const s = JSON.stringify(a);
+          return s.length > MAX_LOG_TEXT ? s.substring(0, MAX_LOG_TEXT) + '...' : s;
+        }
+        return String(a);
+      }
+      catch { return String(a); }
+    }).join(' ');
+    if (text.length > MAX_LOG_TEXT) text = text.substring(0, MAX_LOG_TEXT) + '...';
+    window.__zAiLogs.push({ level, text, time: Date.now() });
     if (window.__zAiLogs.length > MAX_LOGS) window.__zAiLogs.shift();
   }
 
@@ -34,6 +40,17 @@
   console.info = function (...a) { capture('info', a); orig.info(...a); };
 
   window.addEventListener('error', (e) => {
-    window.__zAiLogs.push({ level: 'error', text: `${e.message} at ${e.filename}:${e.lineno}`, time: Date.now() });
+    const text = `${e.message} at ${e.filename}:${e.lineno}`;
+    window.__zAiLogs.push({ level: 'error', text: text.substring(0, MAX_LOG_TEXT), time: Date.now() });
+    if (window.__zAiLogs.length > MAX_LOGS) window.__zAiLogs.shift();
+  });
+
+  window.addEventListener('unhandledrejection', (e) => {
+    const reason = e.reason;
+    const text = reason instanceof Error
+      ? `Unhandled rejection: ${reason.message}`
+      : `Unhandled rejection: ${String(reason)}`;
+    window.__zAiLogs.push({ level: 'error', text: text.substring(0, MAX_LOG_TEXT), time: Date.now() });
+    if (window.__zAiLogs.length > MAX_LOGS) window.__zAiLogs.shift();
   });
 })();

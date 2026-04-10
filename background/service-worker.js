@@ -333,7 +333,8 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  const task = info.selectionText || `Analyze this page: ${tab?.url || 'current'}`;
+  if (!tab) return;
+  const task = info.selectionText || `Analyze this page: ${tab.url || 'current'}`;
   chrome.sidePanel.open({ tabId: tab.id });
   setTimeout(() => {
     broadcast({ type: 'incoming_task', text: task, tabId: tab.id });
@@ -700,6 +701,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function attachDebugger(tabId) {
   if (debugTabId === tabId) return;
   if (debugTabId) {
+    // Clean up old event listeners BEFORE detaching to prevent zombie handlers
+    if (debugLogHandler) {
+      chrome.debugger.onEvent.removeListener(debugLogHandler);
+      debugLogHandler = null;
+    }
+    if (debugDetachedHandler) {
+      chrome.debugger.onDetach.removeListener(debugDetachedHandler);
+      debugDetachedHandler = null;
+    }
     expectedDetachTabIds.add(debugTabId);
     try { await chrome.debugger.detach({ tabId: debugTabId }); } catch { }
   }
@@ -919,9 +929,9 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
     broadcast({ type: 'task_start', text: task, taskId: taskCtx.id, tabId: tab.id, model });
     await showTaskEffects(tab.id);
 
-    for (let i = 0; i < 40 && !taskCtx.shouldStop; i++) {
+    for (let i = 0; i < MAX_AGENT_STEPS && !taskCtx.shouldStop; i++) {
       broadcast({ type: 'thinking', taskId: taskCtx.id, tabId: taskCtx.tabId });
-      broadcast({ type: 'progress', step: i + 1, maxSteps: 40, percent: Math.round(((i + 1) / 40) * 100), taskId: taskCtx.id, tabId: taskCtx.tabId });
+      broadcast({ type: 'progress', step: i + 1, maxSteps: MAX_AGENT_STEPS, percent: Math.round(((i + 1) / MAX_AGENT_STEPS) * 100), taskId: taskCtx.id, tabId: taskCtx.tabId });
 
       let response;
       try {
@@ -1587,7 +1597,7 @@ async function executeTool(tabId, tool, params) {
 
       // === Downloads ===
       case 'download': {
-        if (!(await isUrlSafeAsync(params.url))) return { text: `Blocked download from unsafe URL: ${params.url}` };
+        if (!(await isUrlSafe(params.url))) return { text: `Blocked download from unsafe URL: ${params.url}` };
         let filename = params.filename;
         if (filename) {
           filename = filename.replace(/[/\\:*?"<>|]/g, '_').split('/').pop().split('\\').pop();
@@ -1784,6 +1794,8 @@ async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools
       throw err;
     }
   }
+  // Should never reach here — all paths throw or return inside the loop
+  throw new Error('API call failed after all retries');
 }
 
 // --- HELPERS ---
@@ -1823,11 +1835,7 @@ async function isUrlSafe(url) {
   } catch { return false; }
 }
 
-// Async wrapper for isUrlSafeAsync — reads devMode from storage first
-async function isUrlSafeAsync(url) {
-  const config = await getConfig();
-  return isUrlSafe(url, config.devMode);
-}
+// isUrlSafeAsync removed — isUrlSafe already reads devMode from storage internally
 
 // User confirmation helper for sensitive operations
 async function confirmWithUser(question) {
@@ -1835,7 +1843,7 @@ async function confirmWithUser(question) {
     transitionTaskState(TASK_STATES.WAITING_USER, { waitingFor: 'confirm' });
   }
   const rid = ++_resolveId;
-  broadcast({ type: 'ask_user', question, confirm: true, ...getActiveTaskMessageMeta(), resolveId: rid });
+  broadcast({ type: 'ask_user', question, confirm: true, options: ['Allow', 'Deny'], ...getActiveTaskMessageMeta(), resolveId: rid });
   const response = await new Promise((resolve) => {
     _pendingResolves.set(rid, resolve);
     setTimeout(() => { _pendingResolves.delete(rid); resolve('no'); }, 60000);

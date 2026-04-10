@@ -19,6 +19,8 @@ let pendingImages = []; // base64 images to send with next message
 let currentTaskText = ''; // Store current task for export
 let currentModel = ''; // Store current model for export
 let autoScrollEnabled = true; // Auto-scroll toggle state
+const MAX_CONVERSATIONS = 30;       // Max stored conversations
+const MAX_CONV_HTML_SIZE = 200000;   // Max HTML size per conversation (~200KB)
 let lastTaskInput = ''; // Store last input for Arrow Up shortcut
 let runningTaskId = null;
 let runningTaskTabId = null;
@@ -94,10 +96,19 @@ function renderPreviews() {
 // Store original welcome HTML for reset
 const originalWelcomeHTML = document.querySelector('.welcome').outerHTML;
 loadModel();
-updateTabInfo();
+
+// Load persisted conversations FIRST, then init tab info (prevents race condition)
+chrome.storage.local.get(['conversations'], (data) => {
+  if (data.conversations && typeof data.conversations === 'object') {
+    conversations = data.conversations;
+  }
+  updateTabInfo();
+});
 
 // --- Long-lived Port Connection (heartbeat) ---
 let panelPort = null;
+
+let heartbeatInterval = null;
 
 function connectPort() {
   try {
@@ -108,11 +119,12 @@ function connectPort() {
     });
     panelPort.onDisconnect.addListener(() => {
       panelPort = null;
+      if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
       // Reconnect after a short delay (SW may have restarted)
       setTimeout(connectPort, 1000);
     });
     // Send heartbeat every 20 seconds to keep SW alive and connection healthy
-    setInterval(() => { try { panelPort?.postMessage({ type: 'heartbeat' }); } catch { } }, 20000);
+    heartbeatInterval = setInterval(() => { try { panelPort?.postMessage({ type: 'heartbeat' }); } catch { } }, 20000);
   } catch { }
 }
 connectPort();
@@ -172,8 +184,9 @@ async function updateTabInfo() {
 function ensureConversation(tabId) {
   if (!tabId) return null;
   if (!conversations[tabId]) {
-    conversations[tabId] = { html: '', currentTaskText: '', currentModel: '', lastTaskInput: '' };
+    conversations[tabId] = { html: '', currentTaskText: '', currentModel: '', lastTaskInput: '', lastAccess: Date.now() };
   }
+  conversations[tabId].lastAccess = Date.now();
   return conversations[tabId];
 }
 
@@ -191,8 +204,27 @@ function saveConversation(tabId, immediate = false) {
   conv.currentModel = currentModel;
   conv.lastTaskInput = lastTaskInput;
 
+  // Truncate oversized HTML to prevent storage bloat
+  if (conv.html.length > MAX_CONV_HTML_SIZE) {
+    conv.html = conv.html.substring(0, MAX_CONV_HTML_SIZE);
+  }
+
   // Debounced persist to storage
   const doPersist = () => {
+    // Prune oldest conversations if over limit
+    const keys = Object.keys(conversations);
+    if (keys.length > MAX_CONVERSATIONS) {
+      // Keep current tab + most recent entries
+      const sorted = keys
+        .filter(k => k !== String(tabId))
+        .sort((a, b) => {
+          const aTime = conversations[a]?.lastAccess || 0;
+          const bTime = conversations[b]?.lastAccess || 0;
+          return bTime - aTime;
+        });
+      const toRemove = sorted.slice(MAX_CONVERSATIONS - 1);
+      toRemove.forEach(k => delete conversations[k]);
+    }
     chrome.storage.local.set({ conversations }).catch(() => {});
   };
   if (immediate) {
@@ -271,15 +303,6 @@ function loadConversation(tabId) {
     restoreConversationState(tabId);
   }
 }
-
-// Load persisted conversations on startup
-chrome.storage.local.get(['conversations'], (data) => {
-  if (data.conversations && typeof data.conversations === 'object') {
-    conversations = data.conversations;
-    // Reload current tab conversation if available
-    if (currentTabId) loadConversation(currentTabId);
-  }
-});
 
 function showWelcome() {
   messagesEl.innerHTML = originalWelcomeHTML;
@@ -624,7 +647,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       }
       appendMessageToConversation(targetTabId, 'ask-user',
         '<div class="label">Agent asks</div>' +
-        '<div class="ask-user-body" data-confirm="' + String(Boolean(msg.confirm)) + '" data-tab-id="' + escapeHtml(String(targetTabId || '')) + '" data-task-id="' + escapeHtml(String(msg.taskId || '')) + '">' +
+        '<div class="ask-user-body" data-confirm="' + String(Boolean(msg.confirm)) + '" data-tab-id="' + escapeHtml(String(targetTabId || '')) + '" data-task-id="' + escapeHtml(String(msg.taskId || '')) + '" data-resolve-id="' + escapeHtml(String(resolveId || '')) + '">' +
         '<p>' + escapeHtml(msg.question) + '</p>' +
         optionsHtml +
         '<div class="ask-user-input">' +
@@ -633,38 +656,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         '</div>' +
         '</div>'
       );
-      // Bind option buttons
-      document.querySelectorAll('.ask-option-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const val = btn.textContent;
-          chrome.runtime.sendMessage({ type: 'user_response', text: val, resolveId });
-          addMsg('tool-result ok', escapeHtml(val));
-          // Disable all options and input
-          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; b.classList.add('selected-off'); });
-          btn.classList.remove('selected-off');
-          btn.classList.add('selected');
-          const inp = document.getElementById('askUserInput');
-          const btn2 = document.getElementById('askUserBtn');
-          if (inp) inp.disabled = true;
-          if (btn2) btn2.disabled = true;
-        });
-      });
-      const askInput = document.getElementById('askUserInput');
-      const askBtn = document.getElementById('askUserBtn');
-      const sendResponse = () => {
-        const val = askInput.value.trim();
-        if (val) {
-          chrome.runtime.sendMessage({ type: 'user_response', text: val, resolveId });
-          addMsg('tool-result ok', escapeHtml(val));
-          askInput.disabled = true;
-          askBtn.disabled = true;
-          document.querySelectorAll('.ask-option-btn').forEach(b => { b.disabled = true; });
-        }
-      };
-      askBtn.addEventListener('click', sendResponse);
-      askInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendResponse();
-      });
+      // All interaction handled via event delegation (messagesEl click/keydown handlers below)
       break;
     }
 
@@ -693,34 +685,42 @@ function startTask(targetTabId = currentTabId) {
   // If a task just completed (not running), use follow_up_task to continue in same tab context
   const msgType = (!runningTaskId) ? 'run_task' : 'follow_up_task';
 
-  chrome.runtime.sendMessage({
-    type: msgType,
-    task: task || 'Analyze these images',
-    taskId: nextTaskId,
-    model: modelSelect.value,
-    images,
-    tabId: targetTabId
-  }, (res) => {
-    if (chrome.runtime.lastError || !res?.success) {
-      setStatus('error', res?.error || chrome.runtime.lastError?.message || 'Could not start task');
-      return;
-    }
-    pendingImages = [];
-    renderPreviews();
-    inputEl.value = '';
-    inputEl.style.height = 'auto';
-  });
+  try {
+    chrome.runtime.sendMessage({
+      type: msgType,
+      task: task || 'Analyze these images',
+      taskId: nextTaskId,
+      model: modelSelect.value,
+      images,
+      tabId: targetTabId
+    }, (res) => {
+      if (chrome.runtime.lastError || !res?.success) {
+        setStatus('error', res?.error || chrome.runtime.lastError?.message || 'Could not start task');
+        return;
+      }
+      pendingImages = [];
+      renderPreviews();
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+    });
+  } catch (e) {
+    setStatus('error', e.message || 'Could not start task');
+  }
 }
 
 function stopTask() {
-  chrome.runtime.sendMessage({ type: 'stop_task' }, (res) => {
-    if (chrome.runtime.lastError || !res?.success) {
-      setStatus('error', res?.error || chrome.runtime.lastError?.message || 'No active task');
-      return;
-    }
-    setStatus('', 'Stopping...');
-    stopBtn.disabled = true;
-  });
+  try {
+    chrome.runtime.sendMessage({ type: 'stop_task' }, (res) => {
+      if (chrome.runtime.lastError || !res?.success) {
+        setStatus('error', res?.error || chrome.runtime.lastError?.message || 'No active task');
+        return;
+      }
+      setStatus('', 'Stopping...');
+      stopBtn.disabled = true;
+    });
+  } catch (e) {
+    setStatus('error', e.message || 'Could not stop task');
+  }
 }
 
 function togglePause() {
@@ -787,8 +787,9 @@ function submitAskUserResponse(askMsgEl, value, selectedBtn = null) {
 
   const askBody = askMsgEl.querySelector('.ask-user-body');
   const confirm = askBody?.dataset.confirm === 'true';
+  const resolveId = askBody?.dataset.resolveId ? parseInt(askBody.dataset.resolveId, 10) : undefined;
   const targetTabId = Number(askBody?.dataset.tabId) || currentTabId;
-  chrome.runtime.sendMessage({ type: 'user_response', text, confirm }, (res) => {
+  chrome.runtime.sendMessage({ type: 'user_response', text, confirm, resolveId }, (res) => {
     if (chrome.runtime.lastError || !res?.success) {
       setStatus('error', res?.error || chrome.runtime.lastError?.message || 'Could not send response');
       return;
@@ -799,18 +800,8 @@ function submitAskUserResponse(askMsgEl, value, selectedBtn = null) {
 }
 
 messagesEl.addEventListener('click', (e) => {
-  const exportBtn = e.target.closest('.export-btn');
-  if (exportBtn) {
-    const task = exportBtn.dataset.task || '';
-    const result = exportBtn.dataset.text || '';
-    const model = exportBtn.dataset.model || modelSelect.value;
-    const filename = `task-${Date.now()}.md`;
-    const content = `# Task\n${task}\n\n# Model\n${model}\n\n# Date\n${new Date().toLocaleString()}\n\n# Result\n${result}\n`;
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    chrome.downloads.download({ url, filename, saveAs: false }, () => URL.revokeObjectURL(url));
-    return;
-  }
+  // Export button handled by direct listener in final_response handler — skip delegation to avoid double download
+  if (e.target.closest('.export-btn')) return;
 
   const askOptionBtn = e.target.closest('.ask-option-btn');
   if (askOptionBtn) {
@@ -854,13 +845,18 @@ function bindCodeCopyButtons() {
   });
 }
 
-// Watch for new code blocks and bind copy buttons
+// Watch for new code blocks and bind copy buttons (throttled via rAF to avoid excessive calls)
+let _observerRafPending = false;
 const codeBlockObserver = new MutationObserver(() => {
-  bindCodeCopyButtons();
-  // Auto-scroll if enabled
-  if (autoScrollEnabled) {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
+  if (_observerRafPending) return;
+  _observerRafPending = true;
+  requestAnimationFrame(() => {
+    _observerRafPending = false;
+    bindCodeCopyButtons();
+    if (autoScrollEnabled) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+  });
 });
 
 codeBlockObserver.observe(messagesEl, { childList: true, subtree: true });

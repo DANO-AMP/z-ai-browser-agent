@@ -34,15 +34,18 @@ function escapeHtml(text) {
  * @returns {string} Sanitized HTML
  */
 function sanitizeHTML(html) {
-  // Remove dangerous tags completely
-  let clean = html.replace(/<(script|iframe|object|embed|applet|form|input|textarea|select|button|link|meta|base)[^>]*>[\s\S]*?<\/\1>/gi, '');
-  clean = clean.replace(/<(script|iframe|object|embed|applet|form|link|meta|base)[^>]*\/?>/gi, '');
-  // Remove event handlers (on*)
+  // Remove dangerous tags completely (paired tags with content)
+  let clean = html.replace(/<(script|iframe|object|embed|applet|form|input|textarea|select|button|link|meta|base|style|svg|math|template|noscript)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  // Remove self-closing dangerous tags
+  clean = clean.replace(/<(script|iframe|object|embed|applet|form|link|meta|base|style|svg|math|template|noscript)[^>]*\/?>/gi, '');
+  // Remove event handlers (on*) — covers all attribute quote styles
   clean = clean.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  // Remove javascript: URLs
-  clean = clean.replace(/href\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi, 'href="#"');
+  // Remove javascript: and data: URLs in href/src/action attributes
+  clean = clean.replace(/(href|src|action)\s*=\s*(?:"(?:javascript|data|vbscript):[^"]*"|'(?:javascript|data|vbscript):[^']*')/gi, '$1="#"');
   // Remove srcdoc attributes
   clean = clean.replace(/srcdoc\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+  // Remove formaction attributes (can redirect form submissions)
+  clean = clean.replace(/formaction\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
   return clean;
 }
 
