@@ -581,11 +581,13 @@ details[open] .card-header-toggle { padding-bottom: 16px; }
 .update-link {
   color: #fff;
   background: var(--accent);
+  border: none;
   padding: 3px 12px;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 600;
-  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
   transition: all var(--transition-fast);
   white-space: nowrap;
 }

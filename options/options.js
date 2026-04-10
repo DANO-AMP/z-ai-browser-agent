@@ -389,9 +389,16 @@ function showUpdateBanner(info) {
   if (!info || !info.updateAvailable) return;
   if (info.dismissed && info.dismissedVersion === info.latestVersion) return;
   updateTextEl.textContent = `v${info.latestVersion} available (you have v${info.currentVersion})`;
-  updateLinkEl.href = info.releaseUrl || '#';
   updateBannerEl.classList.remove('hidden');
 }
+
+updateLinkEl.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'download_update' }, (res) => {
+    if (chrome.runtime.lastError || !res?.success) {
+      showStatus('Could not start download', false);
+    }
+  });
+});
 
 updateDismissEl.addEventListener('click', () => {
   updateBannerEl.classList.add('hidden');

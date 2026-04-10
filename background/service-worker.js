@@ -479,6 +479,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
+  else if (msg.type === 'download_update') {
+    chrome.storage.local.get(UPDATE_KEY, (data) => {
+      const info = data[UPDATE_KEY];
+      const url = info?.downloadUrl || info?.releaseUrl;
+      if (!url) { sendResponse({ success: false, error: 'No download URL' }); return; }
+      chrome.downloads.download({ url, saveAs: true }, (id) => {
+        sendResponse({ success: Boolean(id) });
+      });
+    });
+    return true;
+  }
   return true;
 });
 
@@ -668,6 +679,7 @@ async function checkForUpdates() {
       currentVersion,
       updateAvailable,
       releaseUrl: release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+      downloadUrl: release.assets?.[0]?.browser_download_url || null,
       releaseName: release.name || `v${latestVersion}`,
       checkedAt: Date.now()
     };
