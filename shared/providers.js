@@ -52,7 +52,7 @@ const PROVIDER_CONFIGS = {
     format: 'openai',
     defaultModels: ['llama3.2', 'llama3.1', 'mistral', 'codellama', 'qwen2.5', 'phi3', 'gemma2'],
     requiresKey: false,
-    hint: 'Ollama must be running locally. Enable Developer mode to allow localhost.'
+    hint: 'Ollama must be running with: OLLAMA_ORIGINS="chrome-extension://*" ollama serve — then enable Developer mode to allow localhost.'
   }
 };
 
