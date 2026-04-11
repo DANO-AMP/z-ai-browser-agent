@@ -1,58 +1,58 @@
-# Z AI Browser Agent
+# BrowserAgent AI
 
-AI-powered browser automation Chrome extension. Give it a task in natural language and it takes control of the browser to complete it.
+AI browser agent Chrome extension. Give it a task in natural language and it takes full control of the browser to complete it — using any AI provider you choose.
 
-Built for the **Z.AI GLM Coding Plan**.
+## Providers
+
+| Provider | Models | Key required |
+|----------|--------|-------------|
+| **Z.AI (GLM)** | GLM-5.1, GLM-5-Turbo, GLM-4.5... | Yes |
+| **Anthropic** | Claude Opus, Sonnet, Haiku | Yes |
+| **OpenAI** | GPT-4o, GPT-4o-mini, o1, o3-mini | Yes |
+| **OpenRouter** | 100+ models via single key | Yes |
+| **Ollama** | Llama, Mistral, Qwen, Phi (local) | No |
 
 ## Features
 
 - **Natural language browser control** — navigate, click, type, scroll, extract data, debug pages
 - **30+ built-in tools** — screenshots, tab management, bookmarks, history, cookies, downloads, JS evaluation
-- **Scheduled tasks** — cron-like recurring automation with configurable intervals (5min to 24hr)
+- **Multi-provider** — switch between Z.AI, Anthropic, OpenAI, OpenRouter or Ollama from Settings
+- **Scheduled tasks** — cron-like recurring automation (5min to 24hr intervals)
 - **AI prompt improver** — one-click optimization of task descriptions
-- **Visual feedback** — pulsing indigo border overlay, "Z AI" tab group, and badge when agent is running
-- **Human-in-the-loop** — agent asks for confirmation on sensitive actions (JS execution, cookie access, downloads)
+- **Visual feedback** — pulsing border overlay, "BrowserAgent" tab group, and pill badge when running
+- **Human-in-the-loop** — asks for confirmation on sensitive actions (JS execution, cookies, downloads)
 - **Per-tab conversations** — separate chat history for each browser tab
-- **Context menu integration** — right-click any page or selection to run with Z AI
-
-## Tech Stack
-
-- Chrome Extension Manifest V3
-- Chrome DevTools Protocol (CDP) via `chrome.debugger`
-- Z.AI Anthropic-compatible API (GLM models)
-- Vanilla JS — zero dependencies
+- **Context menu integration** — right-click any page or selection to run BrowserAgent AI
 
 ## Installation
 
-### From source
-
 ```bash
-git clone https://github.com/DANO-AMP/z-ai-browser-agent.git
+git clone https://github.com/DANO-AMP/browser-agent-ai.git
 ```
 
 1. Open `chrome://extensions/`
 2. Enable **Developer mode** (top right toggle)
 3. Click **Load unpacked**
-4. Select the `z-ai-browser-agent` folder
+4. Select the `browser-agent-ai` folder
 5. Click the extension icon to open the sidepanel
 
-### Configuration
+## Configuration
 
-1. Click the gear icon in the sidepanel header (or go to extension Settings)
-2. Enter your **Z.AI API Key** from your GLM Coding Plan dashboard
-3. Select your preferred model (GLM-5.1 recommended)
-4. Click **Save**, then **Test connection**
+1. Click the gear icon → **Settings**
+2. Select your **Provider** (Z.AI recommended to start)
+3. Enter your **API Key**
+4. Pick a **Model** and verify the **API Endpoint**
+5. Click **Save** → **Test connection**
 
-## Models
+### Ollama (local, no key needed)
 
-| Model | Speed | Quality | Best for |
-|-------|-------|---------|----------|
-| GLM-5.1 | Medium | Highest | Complex multi-step tasks |
-| GLM-5-Turbo | Fast | High | Quick tasks, general use |
-| GLM-5 | Medium | High | Balanced performance |
-| GLM-4.5 | Fast | Good | Simple tasks |
-| GLM-4.5-Flash | Fastest | Good | Speed-critical tasks |
-| GLM-4.5-Air | Fastest | Moderate | High-volume, simple tasks |
+Start Ollama with CORS enabled for the extension:
+
+```bash
+OLLAMA_ORIGINS="chrome-extension://*" ollama serve
+```
+
+Then in Settings: select **Ollama**, enable **Developer Mode**, choose a model, Save.
 
 ## Available Tools
 
@@ -68,12 +68,10 @@ git clone https://github.com/DANO-AMP/z-ai-browser-agent.git
 
 ## Scheduled Tasks
 
-Create recurring automations from the sidepanel (clock icon) or Settings page:
-
-1. Describe the task
-2. (Optional) Click **Improve** to let AI optimize your prompt
+1. Describe the task in Settings → Scheduled Tasks
+2. (Optional) Click **Improve** to AI-optimize your prompt
 3. Select interval (5min to 24hr)
-4. Click **Add Task**
+4. Click **Add Task** — runs automatically on schedule
 5. Use **Run now** to execute immediately
 
 ## Security
@@ -88,40 +86,29 @@ Create recurring automations from the sidepanel (clock icon) or Settings page:
 ## Project Structure
 
 ```
-z-ai-browser-agent/
+browser-agent-ai/
   background/
-    service-worker.js    # Agent loop, tool execution, CDP, API client
+    service-worker.js    # Agent loop, 30+ CDP tools, multi-provider API client
   content/
-    content.js           # Console log capture (injected into pages)
+    content.js           # Console log capture injected into pages
   sidepanel/
-    sidepanel.html       # Chat UI
-    sidepanel.js         # UI logic, per-tab conversations, scheduling
-    sidepanel.css        # Stitch-inspired dark theme
+    sidepanel.html/js/css  # Chat UI, per-tab conversations
   options/
-    options.html         # Settings page
-    options.js           # Config management, scheduled tasks
-    options.css          # Settings styles
+    options.html/js/css    # Settings: provider, key, model, endpoint, schedules
   shared/
-    tokens.css           # Design system tokens (CSS variables)
-  icons/
-    icon16.png           # Extension icons
-    icon48.png
-    icon128.png
-  manifest.json          # Chrome extension manifest (MV3)
+    providers.js         # Provider adapter layer (Anthropic ↔ OpenAI format)
+    api.js               # improvePrompt (provider-aware)
+    utils.js             # Shared utilities
+    tokens.css           # Design system tokens
+  manifest.json          # Chrome MV3 manifest
 ```
 
-## Development
+## Tech Stack
 
-```bash
-# Clone
-git clone https://github.com/DANO-AMP/z-ai-browser-agent.git
-cd z-ai-browser-agent
-
-# Load in Chrome
-# 1. chrome://extensions/ → Developer mode → Load unpacked → select this folder
-
-# After changes, click the refresh icon on chrome://extensions/
-```
+- Chrome Extension Manifest V3
+- Chrome DevTools Protocol (CDP) via `chrome.debugger`
+- Vanilla JS — zero dependencies, no build step
+- Provider-agnostic: Anthropic Messages API + OpenAI Chat Completions API
 
 ## License
 
