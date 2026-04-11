@@ -2,6 +2,7 @@
 // Uses Z.AI's Anthropic-compatible API + Chrome DevTools Protocol (CDP)
 
 importScripts('../shared/utils.js');
+importScripts('../shared/providers.js');
 
 // --- CONSTANTS ---
 const MAX_AGENT_STEPS = 40;
@@ -1901,35 +1902,37 @@ async function executeTool(tabId, tool, params) {
 // --- API ---
 
 async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools, signal = null) {
+  const cfg = await getConfig();
+  const provider = cfg.provider || 'zai';
+
+  // For Ollama (local), skip URL safety — it's always localhost
+  // For all others, isUrlSafe was already checked in runTask before calling us
+
   const maxRetries = MAX_TOOL_RETRIES;
-  let delay = 1000; // Start with 1 second
+  let delay = 1000;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Check for abort before each attempt
       if (signal?.aborted) throw new Error('Request aborted');
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': authToken, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model, max_tokens: 4096, system: systemPrompt, messages, tools }),
-        signal
-      });
+      const { headers, body } = ZAIProviders.buildProviderRequest(provider, authToken, model, systemPrompt, messages, tools);
 
-      if (res.ok) return await res.json();
+      const res = await fetch(endpoint, { method: 'POST', headers, body, signal });
 
-      // Retry on 429 (rate limit) or 503 (server error)
+      if (res.ok) {
+        const data = await res.json();
+        return ZAIProviders.normalizeResponse(provider, data);
+      }
+
       if ((res.status === 429 || res.status === 503) && attempt < maxRetries - 1) {
         await sleep(delay);
-        delay *= 2; // Exponential backoff: 1s, 2s, 4s
+        delay *= 2;
         continue;
       }
 
       throw new Error(`API ${res.status}: ${(await res.text()).substring(0, 300)}`);
     } catch (err) {
-      // If aborted, propagate immediately
       if (err.name === 'AbortError' || err.message === 'Request aborted') throw new Error('Request aborted');
-      // If it's a network error and we have retries left, retry
       if (attempt < maxRetries - 1 && (err.name === 'TypeError' || err.message?.includes('fetch'))) {
         await sleep(delay);
         delay *= 2;
@@ -1938,13 +1941,12 @@ async function callAPI(endpoint, authToken, model, systemPrompt, messages, tools
       throw err;
     }
   }
-  // Should never reach here — all paths throw or return inside the loop
   throw new Error('API call failed after all retries');
 }
 
 // --- HELPERS ---
 
-async function getConfig() { return await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName', 'systemPrompt', 'devMode']); }
+async function getConfig() { return await chrome.storage.local.get(['authToken', 'apiEndpoint', 'modelName', 'systemPrompt', 'devMode', 'provider']); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // broadcast: prefers long-lived port (more reliable), falls back to sendMessage
@@ -1971,7 +1973,7 @@ async function isUrlSafe(url) {
     const h = parsed.hostname;
     // Check devMode setting for localhost/private IP access
     const config = await getConfig();
-    if (!config.devMode) {
+    if (!config.devMode && config.provider !== 'ollama') {
       if (['localhost', '127.0.0.1', '0.0.0.0'].includes(h)) return false;
       if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return false;
     }

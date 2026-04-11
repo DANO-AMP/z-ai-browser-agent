@@ -7,22 +7,69 @@ const devModeInput = document.getElementById("devMode");
 const saveBtn = document.getElementById("saveBtn");
 const testBtn = document.getElementById("testBtn");
 const statusEl = document.getElementById("status");
+const providerSelect = document.getElementById('providerSelect');
 
 const DEFAULTS = {
-  apiEndpoint: "https://api.z.ai/api/anthropic/v1/messages",
-  modelName: "glm-5.1"
+  provider: 'zai',
+  apiEndpoint: '',
+  modelName: 'glm-5.1'
 };
+
+function updateProviderUI(provider) {
+  const cfg = (window.ZAIProviders?.PROVIDER_CONFIGS || {})[provider] || {};
+
+  // Update model options
+  const modelSelect = modelNameSelect;
+  const currentVal = modelSelect.value;
+  const models = cfg.defaultModels || ['glm-5.1'];
+  modelSelect.textContent = '';
+  models.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = i === 0 ? m + ' — Recommended' : m;
+    modelSelect.appendChild(opt);
+  });
+  // Restore selection if still valid
+  if (models.includes(currentVal)) modelSelect.value = currentVal;
+
+  // Update API key hint
+  const hintEl = document.getElementById('apiKeyHint');
+  if (hintEl && cfg.hint) hintEl.textContent = cfg.hint;
+
+  // Update endpoint hint
+  const endpointHintEl = document.getElementById('endpointHint');
+  if (endpointHintEl) {
+    endpointHintEl.textContent = cfg.defaultEndpoint
+      ? 'Default: ' + cfg.defaultEndpoint
+      : 'Custom endpoint URL';
+  }
+
+  // Show/hide API key field based on requiresKey
+  const keyField = authTokenInput.closest('.field');
+  if (keyField) keyField.style.opacity = cfg.requiresKey === false ? '0.6' : '1';
+
+  // If endpoint is empty or matches any known default, auto-fill the new provider's default
+  const currentEndpoint = apiEndpointInput.value.trim();
+  const knownDefaults = Object.values(window.ZAIProviders?.PROVIDER_CONFIGS || {}).map(c => c.defaultEndpoint);
+  if (!currentEndpoint || knownDefaults.includes(currentEndpoint)) {
+    apiEndpointInput.value = cfg.defaultEndpoint || '';
+  }
+}
 
 const alertBanner = document.getElementById("alertBanner");
 
 // Load saved settings
-chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt", "soundEnabled", "devMode"], (data) => {
+chrome.storage.local.get(["authToken", "apiEndpoint", "modelName", "systemPrompt", "soundEnabled", "devMode", "provider"], (data) => {
   authTokenInput.value = data.authToken || "";
-  apiEndpointInput.value = data.apiEndpoint || DEFAULTS.apiEndpoint;
-  modelNameSelect.value = data.modelName || DEFAULTS.modelName;
   systemPromptInput.value = data.systemPrompt || "";
   soundEnabledInput.checked = data.soundEnabled !== false; // Default is enabled
   devModeInput.checked = data.devMode || false;
+  const savedProvider = data.provider || DEFAULTS.provider;
+  if (providerSelect) providerSelect.value = savedProvider;
+  updateProviderUI(savedProvider);
+  // Restore saved model and endpoint after updateProviderUI populates defaults
+  if (data.modelName) modelNameSelect.value = data.modelName;
+  if (data.apiEndpoint) apiEndpointInput.value = data.apiEndpoint;
   // Show warning if no API key
   if (!data.authToken) alertBanner.style.display = "flex";
 });
@@ -32,6 +79,12 @@ authTokenInput.addEventListener('input', () => {
   if (authTokenInput.value.trim()) alertBanner.style.display = "none";
 });
 
+if (providerSelect) {
+  providerSelect.addEventListener('change', () => {
+    updateProviderUI(providerSelect.value);
+  });
+}
+
 function showStatus(msg, ok) {
   statusEl.textContent = msg;
   statusEl.className = "status " + (ok ? "ok" : "err");
@@ -39,10 +92,13 @@ function showStatus(msg, ok) {
 }
 
 saveBtn.addEventListener("click", () => {
-  const rawEndpoint = apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint;
+  const currentProvider = providerSelect?.value || 'zai';
+  const providerCfgSave = (window.ZAIProviders?.PROVIDER_CONFIGS || {})[currentProvider] || {};
+  const rawEndpoint = apiEndpointInput.value.trim() || providerCfgSave.defaultEndpoint || '';
   try {
     const parsed = new URL(rawEndpoint);
-    if (parsed.protocol !== 'https:' || !isUrlSafe(rawEndpoint)) {
+    const isLocal = currentProvider === 'ollama' || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    if (!isLocal && (parsed.protocol !== 'https:' || !isUrlSafe(rawEndpoint))) {
       showStatus('Invalid API endpoint: must be an https:// URL', false);
       return;
     }
@@ -51,6 +107,7 @@ saveBtn.addEventListener("click", () => {
     return;
   }
   chrome.storage.local.set({
+    provider: currentProvider,
     authToken: authTokenInput.value.trim(),
     apiEndpoint: rawEndpoint,
     modelName: modelNameSelect.value,
@@ -69,11 +126,13 @@ saveBtn.addEventListener("click", () => {
 
 testBtn.addEventListener("click", async () => {
   const authToken = authTokenInput.value.trim();
-  const endpoint = apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint;
+  const provider = providerSelect?.value || 'zai';
+  const providerCfg = (window.ZAIProviders?.PROVIDER_CONFIGS || {})[provider] || {};
+  const endpoint = apiEndpointInput.value.trim() || providerCfg.defaultEndpoint || '';
   const model = modelNameSelect.value;
 
-  if (!authToken) {
-    showStatus("Enter your Z.AI API Key", false);
+  if (!authToken && providerCfg.requiresKey !== false) {
+    showStatus("Enter your API Key", false);
     return;
   }
 
@@ -82,7 +141,8 @@ testBtn.addEventListener("click", async () => {
 
   try {
     const parsed = new URL(endpoint);
-    if (parsed.protocol !== 'https:' || !isUrlSafe(endpoint)) {
+    const isLocal = provider === 'ollama' || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    if (!isLocal && (parsed.protocol !== 'https:' || !isUrlSafe(endpoint))) {
       showStatus('Invalid endpoint URL', false);
       testBtn.disabled = false;
       testBtn.textContent = 'Test connection';
@@ -95,19 +155,23 @@ testBtn.addEventListener("click", async () => {
     return;
   }
 
+  const isOpenAIFormat = provider === 'openai' || provider === 'openrouter' || provider === 'ollama';
+  const testHeaders = { 'Content-Type': 'application/json' };
+  if (isOpenAIFormat) {
+    testHeaders['Authorization'] = `Bearer ${authToken || 'ollama'}`;
+  } else {
+    testHeaders['x-api-key'] = authToken;
+    testHeaders['anthropic-version'] = '2023-06-01';
+  }
+  const testBody = isOpenAIFormat
+    ? { model, max_tokens: 1, messages: [{ role: 'system', content: 'ping' }] }
+    : { model, max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] };
+
   try {
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": authToken,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 20,
-        messages: [{ role: "user", content: "Reply only: OK" }]
-      })
+      headers: testHeaders,
+      body: JSON.stringify(testBody)
     });
 
     if (res.ok) {

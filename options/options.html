@@ -61,6 +61,20 @@
       </div>
 
       <div class="field">
+        <label for="providerSelect">Provider</label>
+        <div class="select-wrapper">
+          <select id="providerSelect">
+            <option value="zai">Z.AI (GLM) — Recommended</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="ollama">Ollama (local)</option>
+          </select>
+          <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="field">
         <label for="authToken">Z.AI API Key</label>
         <div class="input-addon">
           <input type="password" id="authToken" placeholder="Paste your API key here…" autocomplete="off" spellcheck="false" />
@@ -68,7 +82,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
-        <p class="hint">From your <strong>z.ai/dashboard</strong> → GLM Coding Plan</p>
+        <p class="hint" id="apiKeyHint">From your <strong>z.ai/dashboard</strong> → GLM Coding Plan</p>
       </div>
 
       <div class="field mb-0">
@@ -76,11 +90,6 @@
         <div class="select-wrapper">
           <select id="modelName">
             <option value="glm-5.1">GLM-5.1 — Recommended</option>
-            <option value="glm-5-turbo">GLM-5-Turbo — Fast</option>
-            <option value="glm-5">GLM-5</option>
-            <option value="glm-4.5">GLM-4.5</option>
-            <option value="glm-4.5-flash">GLM-4.5-Flash</option>
-            <option value="glm-4.5-air">GLM-4.5-Air</option>
           </select>
           <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </div>
@@ -234,7 +243,7 @@
         <div class="field">
           <label for="apiEndpoint">Custom Endpoint</label>
           <input type="text" id="apiEndpoint" placeholder="https://api.z.ai/api/anthropic/v1/messages" spellcheck="false" />
-          <p class="hint">Only change if you have a custom Z.AI endpoint</p>
+          <p class="hint" id="endpointHint">Only change if you have a custom Z.AI endpoint</p>
         </div>
         <div class="field">
           <label for="systemPrompt">System Prompt</label>
@@ -283,6 +292,7 @@
   </div>
 
   <script src="../shared/utils.js"></script>
+  <script src="../shared/providers.js"></script>
   <script src="../shared/api.js"></script>
   <script src="options.js"></script>
   <script>
