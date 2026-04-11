@@ -42,8 +42,8 @@ const PROVIDER_CONFIGS = {
     requiresKey: true,
     hint: 'Get your key from openrouter.ai/keys',
     extraHeaders: {
-      'HTTP-Referer': 'https://github.com/DANO-AMP/z-ai-browser-agent',
-      'X-Title': 'Z AI Browser Agent'
+      'HTTP-Referer': 'https://github.com/DANO-AMP/browser-agent-ai',
+      'X-Title': 'BrowserAgent AI'
     }
   },
   ollama: {

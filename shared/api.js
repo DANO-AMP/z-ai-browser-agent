@@ -1,4 +1,4 @@
-// Z AI Browser Agent - Shared API Functions
+// BrowserAgent AI - Shared API Functions
 // API-related functions used across the extension
 
 /**

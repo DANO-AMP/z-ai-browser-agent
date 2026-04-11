@@ -390,7 +390,7 @@ function loadTaskHistory() {
 clearHistoryOptionsBtn.addEventListener('click', () => {
   if (confirm('Clear all task history?')) {
     chrome.storage.local.set({ taskHistory: [] }, () => {
-      if (chrome.runtime.lastError) { console.warn('[Z AI] clearHistory failed:', chrome.runtime.lastError.message); return; }
+      if (chrome.runtime.lastError) { console.warn('[BrowserAgent AI] clearHistory failed:', chrome.runtime.lastError.message); return; }
       loadTaskHistory();
     });
   }

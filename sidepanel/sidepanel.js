@@ -113,7 +113,7 @@ let heartbeatInterval = null;
 function connectPort() {
   if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
   try {
-    panelPort = chrome.runtime.connect({ name: 'z-ai-panel' });
+    panelPort = chrome.runtime.connect({ name: 'browseragent-panel' });
     panelPort.onMessage.addListener(msg => {
       if (msg.type === 'heartbeat_ack') return;
       handleBgMessage(msg);

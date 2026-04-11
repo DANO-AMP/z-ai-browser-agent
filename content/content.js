@@ -1,4 +1,4 @@
-// Z AI Browser Agent - Content Script
+// BrowserAgent AI - Content Script
 // Captures console logs for the agent to read
 
 (function () {

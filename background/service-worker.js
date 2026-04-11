@@ -1,5 +1,5 @@
-// Z AI Browser Agent - Background Service Worker
-// Uses Z.AI's Anthropic-compatible API + Chrome DevTools Protocol (CDP)
+// BrowserAgent AI - Background Service Worker
+// Multi-provider AI (OpenAI, Anthropic, OpenRouter, Ollama, Z.AI) + Chrome DevTools Protocol (CDP)
 
 importScripts('../shared/utils.js');
 importScripts('../shared/providers.js');
@@ -318,7 +318,7 @@ async function resolveInitialTaskTab(preferredTabId = null) {
 
 function saveTaskHistory(taskText, resultText) {
   chrome.storage.local.get(['taskHistory'], (data) => {
-    if (chrome.runtime.lastError) { console.warn('[Z AI] saveTaskHistory failed:', chrome.runtime.lastError.message); return; }
+    if (chrome.runtime.lastError) { console.warn('[BrowserAgent AI] saveTaskHistory failed:', chrome.runtime.lastError.message); return; }
     const history = data.taskHistory || [];
     history.unshift({ task: taskText, result: resultText.substring(0, 500), timestamp: Date.now() });
     if (history.length > 50) history.length = 50;
@@ -329,8 +329,8 @@ function saveTaskHistory(taskText, resultText) {
 // --- CONTEXT MENU ---
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: 'z-ai-task',
-    title: 'Run with Z AI',
+    id: 'browseragent-task',
+    title: 'Run with BrowserAgent AI',
     contexts: ['selection', 'link', 'page']
   });
 });
@@ -348,11 +348,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Long-lived port connection (side panel) — enables heartbeat and push-style events
 chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== 'z-ai-panel') return;
+  if (port.name !== 'browseragent-panel') return;
 
   // Validate origin — only accept connections from our own extension pages
   if (port.sender?.id !== chrome.runtime.id) {
-    console.warn('[Z AI] Blocked unauthorized port connection');
+    console.warn('[BrowserAgent AI] Blocked unauthorized port connection');
     port.disconnect();
     return;
   }
@@ -369,7 +369,7 @@ chrome.runtime.onConnect.addListener(port => {
     sidePanelPort = null;
     // If the panel closes while a task is running, stop the task gracefully
     if (activeTask && ![TASK_STATES.COMPLETED, TASK_STATES.FAILED, TASK_STATES.STOPPING].includes(activeTask.state)) {
-      console.log('[Z AI] Side panel disconnected — stopping active task');
+      console.log('[BrowserAgent AI] Side panel disconnected — stopping active task');
       stopActiveTask('panel_closed');
     }
   });
@@ -555,13 +555,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // --- Keep-Alive Alarm (Phase 1) ---
 // Chrome MV3 kills the SW after ~30s idle. A sub-minute alarm forces it to wake
 // every 24 seconds, keeping long-running task chains alive all day.
-const KEEPALIVE_ALARM  = 'z-ai-keepalive';
-const UPDATE_ALARM     = 'z-ai-update-check';
-const SCHEDULED_PREFIX = 'z-ai-task-';
+const KEEPALIVE_ALARM  = 'browseragent-keepalive';
+const UPDATE_ALARM     = 'browseragent-update-check';
+const SCHEDULED_PREFIX = 'browseragent-task-';
 const QUEUE_KEY        = 'z_ai_task_queue';
 const CHECKPOINT_KEY   = 'z_ai_checkpoint';
 const UPDATE_KEY       = 'z_ai_update_info';
-const GITHUB_REPO      = 'DANO-AMP/z-ai-browser-agent';
+const GITHUB_REPO      = 'DANO-AMP/browser-agent-ai';
 
 // --- Persistent Queue helpers (Phase 2) ---
 
@@ -704,7 +704,7 @@ async function checkForUpdates() {
       broadcast({ type: 'update_available', ...info });
     }
   } catch (e) {
-    console.warn('[Z AI] Update check failed:', e.message);
+    console.warn('[BrowserAgent AI] Update check failed:', e.message);
   }
 }
 
@@ -716,7 +716,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (!activeTask || [TASK_STATES.COMPLETED, TASK_STATES.FAILED, TASK_STATES.IDLE].includes(activeTask?.state)) {
       const next = _queueDirty ? await dequeueNext() : null;
       if (next) {
-        console.log('[Z AI] Keep-alive: executing queued task', next.id);
+        console.log('[BrowserAgent AI] Keep-alive: executing queued task', next.id);
         runTask(next.task, next.id, next.model, next.images, next.tabId, next);
       }
     }
@@ -778,7 +778,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const age = Date.now() - checkpoint.savedAt;
     const STALE_MS = 90 * 1000; // 90s — if task didn't finish in 90s after SW woke, it was killed
     if (age > STALE_MS) {
-      console.warn('[Z AI] Watchdog: interrupted task detected', checkpoint);
+      console.warn('[BrowserAgent AI] Watchdog: interrupted task detected', checkpoint);
       const queueItem = checkpoint.queueItem;
       if (queueItem && queueItem.retries < queueItem.maxRetries) {
         // Re-queue with incremented retry count
@@ -787,12 +787,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         queueItem.status = 'pending';
         await queueTask(queueItem);
         _queueDirty = true;
-        console.log('[Z AI] Watchdog: re-queued task for retry', queueItem.id, 'attempt', queueItem.retries);
+        console.log('[BrowserAgent AI] Watchdog: re-queued task for retry', queueItem.id, 'attempt', queueItem.retries);
       } else {
         // Max retries reached or one-shot task — clear checkpoint and mark failed
         await clearCheckpoint();
         if (queueItem) await markQueueItemDone(queueItem.id, true);
-        console.warn('[Z AI] Watchdog: task exceeded max retries, marked failed', checkpoint.taskId);
+        console.warn('[BrowserAgent AI] Watchdog: task exceeded max retries, marked failed', checkpoint.taskId);
       }
     }
   }
@@ -805,7 +805,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // Reset any items stuck in 'running' state (from interrupted SW) back to 'pending'
     const fixed = queue.map(q => q.status === 'running' ? { ...q, status: 'pending' } : q);
     await chrome.storage.local.set({ [QUEUE_KEY]: fixed });
-    console.log('[Z AI] Startup: found', pendingCount, 'pending task(s) in queue — will process on next keepalive');
+    console.log('[BrowserAgent AI] Startup: found', pendingCount, 'pending task(s) in queue — will process on next keepalive');
   }
 })();
 
@@ -919,7 +919,7 @@ async function showTaskEffects(tabId) {
   // 2. Tab group + task tab tracking
   try {
     const groupId = await chrome.tabs.group({ tabIds: [tabId] });
-    await chrome.tabGroups.update(groupId, { title: 'Z AI', color: 'purple', collapsed: false });
+    await chrome.tabGroups.update(groupId, { title: 'BrowserAgent', color: 'purple', collapsed: false });
     taskTabGroupId = groupId;
     taskTabIds.add(tabId);
     const tab = await chrome.tabs.get(tabId);
@@ -930,22 +930,22 @@ async function showTaskEffects(tabId) {
   try {
     await cdp(tabId, 'Runtime.evaluate', {
       expression: `(() => {
-        if (document.getElementById('z-ai-overlay')) return;
+        if (document.getElementById('ba-overlay')) return;
         var s = document.createElement('style');
-        s.id = 'z-ai-style';
-        s.textContent = '#z-ai-border{position:fixed;inset:0;pointer-events:none;z-index:2147483646;border:2px solid rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08),0 0 15px rgba(99,102,241,0.1);animation:z-ai-pulse 3s ease-in-out infinite}@keyframes z-ai-pulse{0%,100%{border-color:rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08)}50%{border-color:rgba(99,102,241,0.25);box-shadow:inset 0 0 15px rgba(99,102,241,0.04)}}#z-ai-pill{position:fixed;top:10px;right:10px;z-index:2147483647;background:rgba(10,10,15,0.9);color:#c0c1ff;font:500 11px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:5px 12px 5px 8px;border-radius:20px;display:flex;align-items:center;gap:6px;border:1px solid rgba(99,102,241,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none}#z-ai-dot{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:z-ai-dot-pulse 1.5s ease-in-out infinite}@keyframes z-ai-dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}';
+        s.id = 'ba-style';
+        s.textContent = '#ba-border{position:fixed;inset:0;pointer-events:none;z-index:2147483646;border:2px solid rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08),0 0 15px rgba(99,102,241,0.1);animation:ba-pulse 3s ease-in-out infinite}@keyframes ba-pulse{0%,100%{border-color:rgba(99,102,241,0.5);box-shadow:inset 0 0 30px rgba(99,102,241,0.08)}50%{border-color:rgba(99,102,241,0.25);box-shadow:inset 0 0 15px rgba(99,102,241,0.04)}}#ba-pill{position:fixed;top:10px;right:10px;z-index:2147483647;background:rgba(10,10,15,0.9);color:#c0c1ff;font:500 11px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:5px 12px 5px 8px;border-radius:20px;display:flex;align-items:center;gap:6px;border:1px solid rgba(99,102,241,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none}#ba-dot{width:6px;height:6px;border-radius:50%;background:#6366f1;animation:ba-dot-pulse 1.5s ease-in-out infinite}@keyframes ba-dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}';
         document.head.appendChild(s);
         var wrap = document.createElement('div');
-        wrap.id = 'z-ai-overlay';
+        wrap.id = 'ba-overlay';
         var border = document.createElement('div');
-        border.id = 'z-ai-border';
+        border.id = 'ba-border';
         wrap.appendChild(border);
         var pill = document.createElement('div');
-        pill.id = 'z-ai-pill';
+        pill.id = 'ba-pill';
         var dot = document.createElement('span');
-        dot.id = 'z-ai-dot';
+        dot.id = 'ba-dot';
         pill.appendChild(dot);
-        pill.appendChild(document.createTextNode('Z AI running...'));
+        pill.appendChild(document.createTextNode('BrowserAgent AI running...'));
         wrap.appendChild(pill);
         document.body.appendChild(wrap);
       })()`
@@ -972,8 +972,8 @@ async function hideTaskEffects(tabId) {
   try {
     await cdp(tabId, 'Runtime.evaluate', {
       expression: `(() => {
-        var o = document.getElementById('z-ai-overlay');
-        var s = document.getElementById('z-ai-style');
+        var o = document.getElementById('ba-overlay');
+        var s = document.getElementById('ba-style');
         if (o) o.remove();
         if (s) s.remove();
       })()`
@@ -1023,7 +1023,7 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
     updateActiveTask({ model, endpoint, systemPrompt: sysPrompt });
 
     if (!authToken) {
-      throw new Error('Z.AI API Key not configured. Go to Settings.');
+      throw new Error('API Key not configured. Go to Settings.');
     }
 
     const tab = await resolveInitialTaskTab(preferredTabId);

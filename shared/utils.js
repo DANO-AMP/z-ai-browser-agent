@@ -1,4 +1,4 @@
-// Z AI Browser Agent - Shared Utilities
+// BrowserAgent AI - Shared Utilities
 // Common helper functions used across the extension
 
 /**
