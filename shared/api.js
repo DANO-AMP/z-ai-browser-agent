@@ -11,30 +11,32 @@
  * @returns {Promise<string>} Improved prompt text
  * @throws {Error} If API call fails
  */
-async function improvePrompt(endpoint, authToken, model, text) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': authToken,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 300,
-      system: 'Improve the user\'s browser automation task prompt. Fix spelling, grammar, and clarity for an AI agent. Return ONLY the improved prompt text, no explanation or extra words.',
-      messages: [{ role: 'user', content: text }]
-    })
-  });
+async function improvePrompt(endpoint, authToken, model, text, provider = 'zai') {
+  const providers = (typeof globalThis !== 'undefined' ? globalThis : self).ZAIProviders;
+  const systemPrompt = 'Improve the user\'s browser automation task prompt. Fix spelling, grammar, and clarity for an AI agent. Return ONLY the improved prompt text, no explanation or extra words.';
+  const messages = [{ role: 'user', content: text }];
 
+  let headers, bodyObj;
+  if (providers) {
+    const req = providers.buildProviderRequest(provider, authToken, model, systemPrompt, messages, []);
+    headers = req.headers;
+    bodyObj = JSON.parse(req.body);
+  } else {
+    // Fallback: Anthropic format
+    headers = { 'Content-Type': 'application/json', 'x-api-key': authToken, 'anthropic-version': '2023-06-01' };
+    bodyObj = { model, system: systemPrompt, messages };
+  }
+  bodyObj.max_tokens = 300;
+
+  const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(bodyObj) });
   if (!res.ok) {
     const errBody = (await res.text()).substring(0, 300);
     throw new Error(`API error ${res.status}: ${errBody}`);
   }
 
   const data = await res.json();
-  const improved = data.content?.find(b => b.type === 'text')?.text || text;
-
+  const normalized = providers ? providers.normalizeResponse(provider, data) : data;
+  const improved = normalized.content?.find(b => b.type === 'text')?.text || text;
   return improved.trim();
 }
 

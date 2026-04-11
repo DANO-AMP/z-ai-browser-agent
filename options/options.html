@@ -19,7 +19,7 @@
       </div>
       <span class="topnav-title">Z AI Agent</span>
     </div>
-    <span class="topnav-version">v1.0.6</span>
+    <span class="topnav-version">v1.0.7</span>
   </nav>
 
   <!-- Update Banner -->
@@ -75,7 +75,7 @@
       </div>
 
       <div class="field">
-        <label for="authToken">Z.AI API Key</label>
+        <label for="authToken" id="apiKeyLabel">API Key</label>
         <div class="input-addon">
           <input type="password" id="authToken" placeholder="Paste your API key here…" autocomplete="off" spellcheck="false" />
           <button class="addon-btn" id="toggleApiKey" title="Show / hide" type="button" tabindex="-1">
@@ -85,7 +85,7 @@
         <p class="hint" id="apiKeyHint">From your <strong>z.ai/dashboard</strong> → GLM Coding Plan</p>
       </div>
 
-      <div class="field mb-0">
+      <div class="field">
         <label for="modelName">Model</label>
         <div class="select-wrapper">
           <select id="modelName">
@@ -94,33 +94,27 @@
           <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>
+
+      <div class="field mb-0">
+        <label for="apiEndpoint">API Endpoint</label>
+        <input type="text" id="apiEndpoint" placeholder="https://api.z.ai/api/anthropic/v1/messages" spellcheck="false" />
+        <p class="hint" id="endpointHint">Auto-configured for selected provider</p>
+      </div>
     </section>
 
-    <!-- ── How to get API Key ── -->
-    <section class="card">
+    <!-- ── Provider Setup Guide ── -->
+    <section class="card" id="apiGuideCard">
       <div class="card-head">
         <div class="card-icon">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
         </div>
-        <span class="card-title">How to get your API Key</span>
+        <span class="card-title" id="guideCardTitle">How to get your API Key</span>
       </div>
       <div class="steps-grid">
-        <div class="step-tile">
-          <span class="step-num">1</span>
-          <span>Visit <code>z.ai/dashboard</code></span>
-        </div>
-        <div class="step-tile">
-          <span class="step-num">2</span>
-          <span>Open <code>GLM Coding Plan</code></span>
-        </div>
-        <div class="step-tile">
-          <span class="step-num">3</span>
-          <span>Copy your API Key</span>
-        </div>
-        <div class="step-tile">
-          <span class="step-num">4</span>
-          <span>Paste above &amp; Save</span>
-        </div>
+        <div class="step-tile"><span class="step-num">1</span><span id="guideStep1">Visit z.ai/dashboard</span></div>
+        <div class="step-tile"><span class="step-num">2</span><span id="guideStep2">Open GLM Coding Plan</span></div>
+        <div class="step-tile"><span class="step-num">3</span><span id="guideStep3">Copy your API Key</span></div>
+        <div class="step-tile"><span class="step-num">4</span><span id="guideStep4">Paste above &amp; Save</span></div>
       </div>
     </section>
 
@@ -240,11 +234,6 @@
       </summary>
 
       <div class="advanced-body">
-        <div class="field">
-          <label for="apiEndpoint">Custom Endpoint</label>
-          <input type="text" id="apiEndpoint" placeholder="https://api.z.ai/api/anthropic/v1/messages" spellcheck="false" />
-          <p class="hint" id="endpointHint">Only change if you have a custom Z.AI endpoint</p>
-        </div>
         <div class="field">
           <label for="systemPrompt">System Prompt</label>
           <textarea id="systemPrompt" rows="4" placeholder="Leave empty for default agent behavior…"></textarea>

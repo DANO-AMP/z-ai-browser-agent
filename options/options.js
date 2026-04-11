@@ -15,45 +15,65 @@ const DEFAULTS = {
   modelName: 'glm-5.1'
 };
 
+const PROVIDER_GUIDES = {
+  zai:        { title: 'How to get your API Key', steps: ['Visit z.ai/dashboard', 'Open GLM Coding Plan', 'Copy your API Key', 'Paste above & Save'] },
+  anthropic:  { title: 'How to get your API Key', steps: ['Visit console.anthropic.com', 'Go to API Keys', 'Click Create new key', 'Paste above & Save'] },
+  openai:     { title: 'How to get your API Key', steps: ['Visit platform.openai.com', 'Go to API Keys', 'Click Create new key', 'Paste above & Save'] },
+  openrouter: { title: 'How to get your API Key', steps: ['Visit openrouter.ai/keys', 'Click Create Key', 'Copy the key', 'Paste above & Save'] },
+  ollama:     { title: 'How to set up Ollama', steps: ['Install from ollama.com', 'Launch: OLLAMA_ORIGINS="chrome-extension://*" ollama serve', 'Enable Developer Mode below', 'Select a model & Save'] }
+};
+
 function updateProviderUI(provider) {
   const cfg = (window.ZAIProviders?.PROVIDER_CONFIGS || {})[provider] || {};
 
   // Update model options
-  const modelSelect = modelNameSelect;
-  const currentVal = modelSelect.value;
+  const currentVal = modelNameSelect.value;
   const models = cfg.defaultModels || ['glm-5.1'];
-  modelSelect.textContent = '';
+  modelNameSelect.textContent = '';
   models.forEach((m, i) => {
     const opt = document.createElement('option');
     opt.value = m;
     opt.textContent = i === 0 ? m + ' — Recommended' : m;
-    modelSelect.appendChild(opt);
+    modelNameSelect.appendChild(opt);
   });
-  // Restore selection if still valid
-  if (models.includes(currentVal)) modelSelect.value = currentVal;
+  if (models.includes(currentVal)) modelNameSelect.value = currentVal;
 
-  // Update API key hint
+  // Update API key label and hint
+  const apiKeyLabel = document.getElementById('apiKeyLabel');
+  if (apiKeyLabel) apiKeyLabel.textContent = cfg.requiresKey === false ? 'API Key (not required)' : 'API Key';
   const hintEl = document.getElementById('apiKeyHint');
   if (hintEl && cfg.hint) hintEl.textContent = cfg.hint;
 
-  // Update endpoint hint
-  const endpointHintEl = document.getElementById('endpointHint');
-  if (endpointHintEl) {
-    endpointHintEl.textContent = cfg.defaultEndpoint
-      ? 'Default: ' + cfg.defaultEndpoint
-      : 'Custom endpoint URL';
-  }
-
-  // Show/hide API key field based on requiresKey
+  // Dim API key field for providers that don't need one
   const keyField = authTokenInput.closest('.field');
-  if (keyField) keyField.style.opacity = cfg.requiresKey === false ? '0.6' : '1';
+  if (keyField) keyField.style.opacity = cfg.requiresKey === false ? '0.5' : '1';
 
-  // If endpoint is empty or matches any known default, auto-fill the new provider's default
+  // Hide alert banner if no key required
+  if (cfg.requiresKey === false) alertBanner.style.display = 'none';
+
+  // Auto-fill endpoint when switching providers (if empty or matches a known default)
   const currentEndpoint = apiEndpointInput.value.trim();
   const knownDefaults = Object.values(window.ZAIProviders?.PROVIDER_CONFIGS || {}).map(c => c.defaultEndpoint);
   if (!currentEndpoint || knownDefaults.includes(currentEndpoint)) {
     apiEndpointInput.value = cfg.defaultEndpoint || '';
   }
+
+  // Update endpoint hint
+  const endpointHintEl = document.getElementById('endpointHint');
+  if (endpointHintEl) {
+    endpointHintEl.textContent = cfg.defaultEndpoint
+      ? 'Default for this provider. Edit to use a custom or self-hosted endpoint.'
+      : 'Enter the endpoint URL for your self-hosted instance.';
+  }
+
+  // Update provider setup guide
+  const guide = PROVIDER_GUIDES[provider] || PROVIDER_GUIDES.zai;
+  const guideTitle = document.getElementById('guideCardTitle');
+  if (guideTitle) guideTitle.textContent = guide.title;
+  ['guideStep1', 'guideStep2', 'guideStep3', 'guideStep4'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = guide.steps[i] || '';
+  });
 }
 
 const alertBanner = document.getElementById("alertBanner");
@@ -307,7 +327,7 @@ improveBtn.addEventListener("click", async () => {
   improveBtn.textContent = "Improving...";
 
   try {
-    const improved = await improvePrompt(endpoint, authToken, model, text);
+    const improved = await improvePrompt(endpoint, authToken, model, text, providerSelect?.value || 'zai');
     schedTaskInput.value = improved;
   } catch (e) {
     showStatus('Error: ' + (e.message || 'Unknown error').substring(0, 120), false);
