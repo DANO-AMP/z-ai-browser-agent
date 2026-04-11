@@ -22,15 +22,14 @@ async function improvePrompt(endpoint, authToken, model, text) {
     body: JSON.stringify({
       model,
       max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `Improve this browser automation task prompt. Fix spelling, grammar, make it clearer and more precise for an AI agent. Return ONLY the improved prompt, nothing else:\n\n${text}`
-      }]
+      system: 'Improve the user\'s browser automation task prompt. Fix spelling, grammar, and clarity for an AI agent. Return ONLY the improved prompt text, no explanation or extra words.',
+      messages: [{ role: 'user', content: text }]
     })
   });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${await res.text()}`);
+    const errBody = (await res.text()).substring(0, 300);
+    throw new Error(`API error ${res.status}: ${errBody}`);
   }
 
   const data = await res.json();
@@ -40,6 +39,5 @@ async function improvePrompt(endpoint, authToken, model, text) {
 }
 
 // Export — works in both browser pages (window) and service worker (importScripts)
-if (typeof window !== 'undefined') {
-  window.improvePrompt = improvePrompt;
-}
+const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
+_globalObj.improvePrompt = improvePrompt;

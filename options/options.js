@@ -39,16 +39,32 @@ function showStatus(msg, ok) {
 }
 
 saveBtn.addEventListener("click", () => {
+  const rawEndpoint = apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint;
+  try {
+    const parsed = new URL(rawEndpoint);
+    if (parsed.protocol !== 'https:' || !isUrlSafe(rawEndpoint)) {
+      showStatus('Invalid API endpoint: must be an https:// URL', false);
+      return;
+    }
+  } catch {
+    showStatus('Invalid API endpoint URL', false);
+    return;
+  }
   chrome.storage.local.set({
     authToken: authTokenInput.value.trim(),
-    apiEndpoint: apiEndpointInput.value.trim() || DEFAULTS.apiEndpoint,
+    apiEndpoint: rawEndpoint,
     modelName: modelNameSelect.value,
     systemPrompt: systemPromptInput.value.trim(),
     soundEnabled: soundEnabledInput.checked,
     devMode: devModeInput.checked
+  }, () => {
+    if (chrome.runtime.lastError) {
+      showStatus('Save failed: ' + chrome.runtime.lastError.message, false);
+      return;
+    }
+    showStatus('Saved!', true);
+    if (authTokenInput.value.trim()) alertBanner.style.display = 'none';
   });
-  showStatus("Saved!", true);
-  if (authTokenInput.value.trim()) alertBanner.style.display = "none";
 });
 
 testBtn.addEventListener("click", async () => {
@@ -63,6 +79,21 @@ testBtn.addEventListener("click", async () => {
 
   testBtn.disabled = true;
   testBtn.textContent = "Testing...";
+
+  try {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== 'https:' || !isUrlSafe(endpoint)) {
+      showStatus('Invalid endpoint URL', false);
+      testBtn.disabled = false;
+      testBtn.textContent = 'Test connection';
+      return;
+    }
+  } catch {
+    showStatus('Invalid endpoint URL', false);
+    testBtn.disabled = false;
+    testBtn.textContent = 'Test connection';
+    return;
+  }
 
   try {
     const res = await fetch(endpoint, {
@@ -83,15 +114,16 @@ testBtn.addEventListener("click", async () => {
       showStatus("Connection successful!", true);
       alertBanner.style.display = "none";
     } else {
-      const err = await res.text();
-      showStatus(`Error ${res.status}: ${err.substring(0, 100)}`, false);
+      let errBody = '';
+      try { errBody = (await res.text()).substring(0, 80); } catch (_) {}
+      showStatus(`Error ${res.status}: ${errBody}`, false);
     }
   } catch (e) {
     showStatus("Network error: " + e.message, false);
+  } finally {
+    testBtn.disabled = false;
+    testBtn.textContent = "Test connection";
   }
-
-  testBtn.disabled = false;
-  testBtn.textContent = "Test connection";
 });
 
 // --- SCHEDULED TASKS ---
@@ -140,7 +172,7 @@ function loadScheduledTasks() {
       badge.className = "sched-badge";
       badge.textContent = formatInterval(t.intervalMinutes);
       const date = document.createElement("span");
-      date.textContent = new Date(t.createdAt).toLocaleDateString();
+      date.textContent = t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '—';
       meta.appendChild(badge);
       meta.appendChild(date);
 
@@ -157,7 +189,8 @@ function loadScheduledTasks() {
             run.disabled = true;
             setTimeout(() => { run.textContent = "Run now"; run.disabled = false; }, 10000);
           } else {
-            showStatus(res?.error || "Could not start task", false);
+            const errMsg = typeof res?.error === 'string' ? res.error.substring(0, 120) : 'Could not start task';
+            showStatus(errMsg, false);
           }
         });
       });
@@ -166,7 +199,7 @@ function loadScheduledTasks() {
       del.className = "sched-item-delete";
       del.textContent = "Delete";
       del.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "remove_scheduled", index: i }, () => {
+        chrome.runtime.sendMessage({ type: "remove_scheduled", alarmName: t.alarmName, index: i }, () => {
           loadScheduledTasks();
         });
       });
@@ -185,7 +218,11 @@ function loadScheduledTasks() {
 addSchedBtn.addEventListener("click", () => {
   const task = schedTaskInput.value.trim();
   if (!task) return;
-  const minutes = parseInt(schedIntervalSelect.value);
+  const minutes = parseInt(schedIntervalSelect.value, 10);
+  if (!Number.isFinite(minutes) || minutes < 1) {
+    showStatus('Invalid interval', false);
+    return;
+  }
   chrome.runtime.sendMessage({ type: "schedule_task", task, cronMinutes: minutes }, () => {
     schedTaskInput.value = "";
     loadScheduledTasks();
@@ -209,7 +246,7 @@ improveBtn.addEventListener("click", async () => {
     const improved = await improvePrompt(endpoint, authToken, model, text);
     schedTaskInput.value = improved;
   } catch (e) {
-    showStatus("Error: " + e.message, false);
+    showStatus('Error: ' + (e.message || 'Unknown error').substring(0, 120), false);
   }
 
   improveBtn.disabled = false;
@@ -249,7 +286,7 @@ function loadTaskHistory() {
       const meta = document.createElement('div');
       meta.className = 'sched-item-meta';
       const date = document.createElement('span');
-      date.textContent = new Date(item.timestamp).toLocaleString();
+      date.textContent = item.timestamp ? new Date(item.timestamp).toLocaleString() : '—';
       meta.appendChild(date);
 
       div.appendChild(taskText);
@@ -268,8 +305,10 @@ function loadTaskHistory() {
 
 clearHistoryOptionsBtn.addEventListener('click', () => {
   if (confirm('Clear all task history?')) {
-    chrome.storage.local.set({ taskHistory: [] });
-    loadTaskHistory();
+    chrome.storage.local.set({ taskHistory: [] }, () => {
+      if (chrome.runtime.lastError) { console.warn('[Z AI] clearHistory failed:', chrome.runtime.lastError.message); return; }
+      loadTaskHistory();
+    });
   }
 });
 
@@ -329,7 +368,7 @@ function loadTemplates() {
       const meta = document.createElement('div');
       meta.className = 'sched-item-meta';
       const date = document.createElement('span');
-      date.textContent = new Date(tmpl.createdAt).toLocaleDateString();
+      date.textContent = tmpl.createdAt ? new Date(tmpl.createdAt).toLocaleDateString() : '—';
       meta.appendChild(date);
 
       const actions = document.createElement('div');
@@ -345,7 +384,8 @@ function loadTemplates() {
             run.disabled = true;
             setTimeout(() => { run.textContent = 'Run now'; run.disabled = false; }, 10000);
           } else {
-            showStatus(res?.error || 'Could not start task', false);
+            const errMsg = typeof res?.error === 'string' ? res.error.substring(0, 120) : 'Could not start task';
+            showStatus(errMsg, false);
           }
         });
       });

@@ -7,7 +7,7 @@
  * @returns {string} Formatted interval (e.g., "30 min", "2 hr", "1 day")
  */
 function formatInterval(min) {
-  if (!min || min <= 0) return '0 min';
+  if (!Number.isFinite(min) || min <= 0) return '0 min';
   if (min < 60) return min + ' min';
   if (min < 1440) {
     const h = min / 60;
@@ -34,19 +34,30 @@ function escapeHtml(text) {
  * @returns {string} Sanitized HTML
  */
 function sanitizeHTML(html) {
-  // Remove dangerous tags completely (paired tags with content)
-  let clean = html.replace(/<(script|iframe|object|embed|applet|form|input|textarea|select|button|link|meta|base|style|svg|math|template|noscript)[^>]*>[\s\S]*?<\/\1>/gi, '');
-  // Remove self-closing dangerous tags
-  clean = clean.replace(/<(script|iframe|object|embed|applet|form|link|meta|base|style|svg|math|template|noscript)[^>]*\/?>/gi, '');
-  // Remove event handlers (on*) — covers all attribute quote styles
-  clean = clean.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  // Remove javascript: and data: URLs in href/src/action attributes
-  clean = clean.replace(/(href|src|action)\s*=\s*(?:"(?:javascript|data|vbscript):[^"]*"|'(?:javascript|data|vbscript):[^']*')/gi, '$1="#"');
-  // Remove srcdoc attributes
-  clean = clean.replace(/srcdoc\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
-  // Remove formaction attributes (can redirect form submissions)
-  clean = clean.replace(/formaction\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  return clean;
+  if (!html) return '';
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const BLOCKED = new Set([
+      'script','iframe','object','embed','applet','form',
+      'input','textarea','select','button','link','meta',
+      'base','style','svg','math','template','noscript'
+    ]);
+    doc.querySelectorAll('*').forEach(el => {
+      if (BLOCKED.has(el.tagName.toLowerCase())) { el.remove(); return; }
+      [...el.attributes].forEach(attr => {
+        if (/^on/i.test(attr.name)) { el.removeAttribute(attr.name); return; }
+        if (/^(href|src|action|formaction|srcdoc)$/i.test(attr.name)) {
+          if (/^(javascript|data|vbscript):/i.test(attr.value.trim())) {
+            el.setAttribute(attr.name, '#');
+          }
+        }
+      });
+    });
+    return doc.body.innerHTML;
+  } catch {
+    // Fallback: return escaped plain text if DOMParser unavailable (service worker context)
+    return escapeHtml(html);
+  }
 }
 
 /**
@@ -55,10 +66,14 @@ function sanitizeHTML(html) {
  * @returns {string} Safe URL or "#" if blocked
  */
 function sanitizeLinkUrl(url) {
+  if (!url) return '#';
   try {
     const parsed = new URL(url, 'https://example.invalid');
     const allowed = ['http:', 'https:', 'mailto:'];
-    return allowed.includes(parsed.protocol) ? url : '#';
+    if (!allowed.includes(parsed.protocol)) return '#';
+    // Block relative URLs (they resolved against the dummy base)
+    if (parsed.origin === 'https://example.invalid') return '#';
+    return url;
   } catch {
     return '#';
   }
@@ -112,7 +127,9 @@ function renderMarkdown(text) {
   });
 
   // Line breaks
-  html = html.replace(/\n\n/g, '</p><p>');
+  if (html.includes('\n\n')) {
+    html = '<p>' + html.replace(/\n\n/g, '</p><p>') + '</p>';
+  }
   html = html.replace(/\n/g, '<br>');
 
   return html;
@@ -138,7 +155,7 @@ function jsStr(value) {
 function isUrlSafe(url, devMode = false) {
   try {
     const parsed = new URL(url);
-    const blocked = ['javascript:', 'file:', 'chrome:', 'chrome-extension:', 'data:', 'blob:'];
+    const blocked = ['javascript:', 'file:', 'chrome:', 'chrome-extension:', 'data:', 'blob:', 'ftp:', 'ws:', 'wss:'];
     if (blocked.includes(parsed.protocol)) return false;
 
     const h = parsed.hostname;

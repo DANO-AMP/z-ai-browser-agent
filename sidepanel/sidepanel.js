@@ -111,6 +111,7 @@ let panelPort = null;
 let heartbeatInterval = null;
 
 function connectPort() {
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
   try {
     panelPort = chrome.runtime.connect({ name: 'z-ai-panel' });
     panelPort.onMessage.addListener(msg => {
@@ -238,7 +239,9 @@ function saveConversation(tabId, immediate = false) {
 
   // Truncate oversized HTML to prevent storage bloat
   if (conv.html.length > MAX_CONV_HTML_SIZE) {
-    conv.html = conv.html.substring(0, MAX_CONV_HTML_SIZE);
+    const truncated = conv.html.substring(0, MAX_CONV_HTML_SIZE);
+    const lastDiv = truncated.lastIndexOf('</div>');
+    conv.html = lastDiv > 0 ? truncated.substring(0, lastDiv + 6) : truncated;
   }
 
   // Debounced persist to storage
@@ -355,7 +358,14 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   });
 });
 
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (tabId === currentTabId && changeInfo.title && tabLabel) {
+    tabLabel.textContent = changeInfo.title;
+  }
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
+  clearTimeout(_saveTimeout);
   delete conversations[tabId];
   if (runningTaskTabId === tabId) {
     runningTaskTabId = null;
@@ -432,8 +442,10 @@ function playCompletionSound() {
 
 function rebindExampleBtns() {
   document.querySelectorAll('.example-btn').forEach(btn => {
+    if (btn.__zAiBound) return;
+    btn.__zAiBound = true;
     btn.addEventListener('click', () => {
-      inputEl.value = btn.dataset.task;
+      inputEl.value = btn.dataset.task || btn.textContent.trim();
       startTask();
     });
   });
@@ -547,7 +559,7 @@ function handleBgMessage(msg) {
       const exportTask = conv?.currentTaskText || currentTaskText;
       const exportModel = conv?.currentModel || currentModel || modelSelect.value;
       if (targetTabId === currentTabId) removeThinking();
-      const renderedMarkdown = addCodeCopyButtons(renderMarkdown(msg.text));
+      const renderedMarkdown = sanitizeHTML(addCodeCopyButtons(renderMarkdown(msg.text)));
       appendMessageToConversation(targetTabId, 'response', '<div class="label">Result</div>' + renderedMarkdown);
       // Build export button via DOM (safe — no untrusted content in innerHTML)
       const labelEl = messagesEl.querySelector('.msg:last-child .label');
@@ -662,8 +674,10 @@ function handleBgMessage(msg) {
       break;
 
     case 'incoming_task':
-      inputEl.value = msg.text;
-      startTask(msg.tabId || currentTabId);
+      if (typeof msg.text === 'string') {
+        inputEl.value = msg.text.substring(0, 4000);
+      }
+      startTask(Number.isInteger(msg.tabId) && msg.tabId > 0 ? msg.tabId : currentTabId);
       break;
 
     // --- ask_user: Agent needs human input ---
@@ -704,7 +718,7 @@ function handleBgMessage(msg) {
       break;
 
     case 'record_done':
-      appendMessageToConversation(resolveMessageTabId(msg), 'tool-result ok', `Grabacion completada: ${msg.frames} frames capturados`);
+      appendMessageToConversation(resolveMessageTabId(msg), 'tool-result ok', escapeHtml(`Grabacion completada: ${Number(msg.frames) || 0} frames capturados`));
       break;
   }
 }
@@ -747,12 +761,12 @@ function startTask(targetTabId = currentTabId) {
 
 function stopTask() {
   try {
+    setStatus('', 'Stopping...');
     chrome.runtime.sendMessage({ type: 'stop_task' }, (res) => {
       if (chrome.runtime.lastError || !res?.success) {
         setStatus('error', res?.error || chrome.runtime.lastError?.message || 'No active task');
         return;
       }
-      setStatus('', 'Stopping...');
       stopBtn.disabled = true;
     });
   } catch (e) {
@@ -780,6 +794,11 @@ function clearMessages() {
   lastTaskInput = '';
   taskIsPaused = false;
   if (pauseBtn) { pauseBtn.textContent = 'Pause'; pauseBtn.title = 'Pause task'; }
+  if (runningTaskTabId === currentTabId) {
+    runningTaskId = null;
+    runningTaskTabId = null;
+    toggleButtons(false);
+  }
 }
 
 // --- Auto-scroll Toggle ---

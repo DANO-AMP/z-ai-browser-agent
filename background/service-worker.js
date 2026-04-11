@@ -117,6 +117,7 @@ let activeTask = null;
 // followUpQueue is now persisted in chrome.storage.local (see queueTask / dequeueNext)
 // In-memory reference kept for fast "is there a next task?" check without storage round-trip
 let _queueDirty = false;  // true when we know storage queue has items
+let _dequeueLock = false;
 let sidePanelPort = null;      // Long-lived port to the side panel (heartbeat)
 const expectedDetachTabIds = new Set();
 const expectedClosedTaskTabIds = new Set();
@@ -245,7 +246,7 @@ function resumeActiveTask() {
 
 // Wait while task is paused (called inside the agent loop)
 async function waitWhilePaused(taskCtx) {
-  if (activeTask?.state !== TASK_STATES.PAUSED) return;
+  if (taskCtx?.state !== TASK_STATES.PAUSED) return;
   await new Promise(resolve => { pauseResolve = resolve; });
 }
 
@@ -316,6 +317,7 @@ async function resolveInitialTaskTab(preferredTabId = null) {
 
 function saveTaskHistory(taskText, resultText) {
   chrome.storage.local.get(['taskHistory'], (data) => {
+    if (chrome.runtime.lastError) { console.warn('[Z AI] saveTaskHistory failed:', chrome.runtime.lastError.message); return; }
     const history = data.taskHistory || [];
     history.unshift({ task: taskText, result: resultText.substring(0, 500), timestamp: Date.now() });
     if (history.length > 50) history.length = 50;
@@ -421,8 +423,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Route by resolveId (new _pendingResolves path)
     const id = msg.resolveId;
     if (id !== undefined && _pendingResolves.has(id)) {
-      _pendingResolves.get(id)(msg.text);
+      const entry = _pendingResolves.get(id);
       _pendingResolves.delete(id);
+      if (entry && typeof entry === 'object' && entry.resolve) {
+        clearTimeout(entry.timerId);
+        entry.resolve(msg.text);
+      } else if (typeof entry === 'function') {
+        // legacy: entry is the resolve function directly
+        entry(msg.text);
+      }
     }
     // Legacy resolve path (askUserResolve / confirmResolve)
     if (!activeTask) {
@@ -578,14 +587,20 @@ async function queueTask(item) {
 }
 
 async function dequeueNext() {
-  const queue = await getQueue();
-  const next = queue.find(q => q.status === 'pending');
-  if (!next) return null;
-  // Mark as running so parallel wakeups don't double-execute
-  next.status = 'running';
-  next.startedAt = Date.now();
-  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
-  return next;
+  if (_dequeueLock) return null;
+  _dequeueLock = true;
+  try {
+    const queue = await getQueue();
+    const next = queue.find(q => q.status === 'pending');
+    if (!next) return null;
+    // Mark as running so parallel wakeups don't double-execute
+    next.status = 'running';
+    next.startedAt = Date.now();
+    await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+    return next;
+  } finally {
+    _dequeueLock = false;
+  }
 }
 
 async function markQueueItemDone(id, failed = false) {
@@ -1027,6 +1042,18 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
     await showTaskEffects(tab.id);
 
     for (let i = 0; i < MAX_AGENT_STEPS && !taskCtx.shouldStop; i++) {
+      // Prune base64 image data from older messages to prevent context window overflow
+      if (messages.length > 8) {
+        for (let m = 0; m < messages.length - 8; m++) {
+          const msg = messages[m];
+          if (Array.isArray(msg.content)) {
+            msg.content = msg.content.map(c =>
+              c.type === 'image' ? { type: 'text', text: '[screenshot omitted]' } : c
+            );
+          }
+        }
+      }
+
       broadcast({ type: 'thinking', taskId: taskCtx.id, tabId: taskCtx.tabId });
       broadcast({ type: 'progress', step: i + 1, maxSteps: MAX_AGENT_STEPS, percent: Math.round(((i + 1) / MAX_AGENT_STEPS) * 100), taskId: taskCtx.id, tabId: taskCtx.tabId });
 
@@ -1088,6 +1115,13 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
           toolResults.push({ type: 'tool_result', tool_use_id: tb.id, content: toolContent });
         }
 
+        // Fill stubs for any tool blocks that were skipped (e.g. due to shouldStop)
+        for (const tb of toolBlocks) {
+          if (!toolResults.find(r => r.tool_use_id === tb.id)) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tb.id, content: [{ type: 'text', text: 'Tool execution skipped (task stopped).' }] });
+          }
+        }
+
         if (taskCtx.shouldStop) break;
         messages.push({ role: 'user', content: toolResults });
       } else {
@@ -1110,9 +1144,13 @@ async function runTask(task, taskId, modelOverride, images, preferredTabId = nul
       broadcast({ type: 'error', text: `Error: ${err.message}`, taskId: taskCtx.id, tabId: taskCtx.tabId });
     }
   } finally {
+    if (taskCtx.shouldStop && activeTask?.state === TASK_STATES.STOPPING) {
+      transitionTaskState(TASK_STATES.COMPLETED, { stopReason: taskCtx.stopReason || 'user_stop' });
+    }
+
     if (recording) {
       recording = false;
-      clearInterval(recordInterval);
+      clearTimeout(recordInterval);
       recordInterval = null;
       recordFrames = [];
     }
@@ -1218,20 +1256,22 @@ async function executeTool(tabId, tool, params) {
         try { await cdp(tabId, 'Page.setLifecycleEventsEnabled', { enabled: true }); } catch { }
         await cdp(tabId, 'Page.navigate', { url: params.url });
         await new Promise(resolve => {
+          let resolved = false;
+          const safeResolve = (val) => { if (!resolved) { resolved = true; resolve(val); } };
           const TIMEOUT_MS = 10000;
-          const timer = setTimeout(resolve, TIMEOUT_MS);
+          const timer = setTimeout(safeResolve, TIMEOUT_MS);
           const handler = (source, method, evtParams) => {
             if (source.tabId !== tabId) return;
             // Prefer networkIdle (page + network settled), fall back to loadEventFired
             if (method === 'Page.lifecycleEvent' && evtParams?.name === 'networkIdle') {
               chrome.debugger.onEvent.removeListener(handler);
               clearTimeout(timer);
-              resolve();
+              safeResolve();
             } else if (method === 'Page.loadEventFired') {
               // loadEventFired as safety net — wait a short additional settle period
               chrome.debugger.onEvent.removeListener(handler);
               clearTimeout(timer);
-              setTimeout(resolve, 300);
+              setTimeout(safeResolve, 300);
             }
           };
           chrome.debugger.onEvent.addListener(handler);
@@ -1576,8 +1616,9 @@ async function executeTool(tabId, tool, params) {
       }
 
       case 'wait': {
-        await sleep(Math.min(params.ms || 1000, MAX_WAIT_MS));
-        return { text: `Waited ${params.ms || 1000}ms` };
+        const actual = Math.min(params.ms || 1000, MAX_WAIT_MS);
+        await sleep(actual);
+        return { text: `Waited ${actual}ms` };
       }
 
       case 'ask_user': {
@@ -1585,9 +1626,8 @@ async function executeTool(tabId, tool, params) {
         const rid = ++_resolveId;
         broadcast({ type: 'ask_user', question: params.question, options: params.options || [], ...getActiveTaskMessageMeta(), resolveId: rid });
         const response = await new Promise((resolve) => {
-          _pendingResolves.set(rid, resolve);
-          // Timeout after 5 minutes
-          setTimeout(() => { _pendingResolves.delete(rid); resolve('Sin respuesta (timeout)'); }, 300000);
+          const timerId = setTimeout(() => { _pendingResolves.delete(rid); resolve('Sin respuesta (timeout)'); }, 300000);
+          _pendingResolves.set(rid, { resolve, timerId });
         });
         return { text: `User responded: ${response}` };
       }
@@ -1764,14 +1804,14 @@ async function executeTool(tabId, tool, params) {
           }
         }
         await cdp(tabId, 'Network.enable');
-        const requests = [];
+        const requestsMap = new Map();
         // Shadow outer "params" with a locally-named variable to avoid collision
         const networkHandler = (source, method, evtParams) => {
           if (source.tabId !== tabId) return;
           if (method === 'Network.requestWillBeSent') {
             const url = evtParams.request?.url;
             if (url && (!filter || filter.test(url))) {
-              requests.push({
+              requestsMap.set(evtParams.requestId, {
                 url,
                 method: evtParams.request?.method,
                 timestamp: evtParams.wallTime || evtParams.timestamp,
@@ -1780,20 +1820,20 @@ async function executeTool(tabId, tool, params) {
               });
             }
           } else if (method === 'Network.responseReceived') {
-            const req = requests.find(r => r.requestId === evtParams.requestId);
+            const req = requestsMap.get(evtParams.requestId);
             if (req && evtParams.response) {
               req.statusCode = evtParams.response.status;
               req.mimeType = evtParams.response.mimeType;
             }
           } else if (method === 'Network.loadingFinished') {
-            const req = requests.find(r => r.requestId === evtParams.requestId);
+            const req = requestsMap.get(evtParams.requestId);
             if (req) {
               req.finished = true;
               req.encodedDataLength = evtParams.encodedDataLength;
               req.state = evtParams.encodedDataLength ? 'complete' : 'unknown';
             }
           } else if (method === 'Network.loadingFailed') {
-            const req = requests.find(r => r.requestId === evtParams.requestId);
+            const req = requestsMap.get(evtParams.requestId);
             if (req) {
               req.failed = true;
               req.errorText = evtParams.errorText;
@@ -1806,6 +1846,7 @@ async function executeTool(tabId, tool, params) {
         chrome.debugger.onEvent.removeListener(networkHandler);
         // Disable Network domain to avoid leaving it enabled unnecessarily
         try { await cdp(tabId, 'Network.disable'); } catch { }
+        const requests = [...requestsMap.values()];
         return { text: JSON.stringify(requests.slice(0, 100), null, 2) };
       }
 
@@ -1813,24 +1854,30 @@ async function executeTool(tabId, tool, params) {
       case 'record_start': {
         recording = true;
         recordFrames = [];
-        if (recordInterval) clearInterval(recordInterval);
+        if (recordInterval) clearTimeout(recordInterval);
         // Capture the active tabId at start time so frames always go to the right tab
         // even if the agent switches tabs during recording
         const recordTabId = tabId || debugTabId;
-        recordInterval = setInterval(async () => {
+        let _recordTimeout = null;
+        async function captureFrame() {
           if (!recording || !recordTabId) return;
           try {
-            const { data } = await cdp(recordTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 20 });
-            recordFrames.push(data);
-            broadcast({ type: 'record_frame', count: recordFrames.length, ...getActiveTaskMessageMeta() });
+            const data = await cdp(recordTabId, 'Page.captureScreenshot', { format: 'jpeg', quality: 50 });
+            if (data?.data) {
+              recordFrames.push(data.data);
+              broadcast({ type: 'record_frame', count: recordFrames.length, ...getActiveTaskMessageMeta() });
+            }
           } catch {}
-        }, RECORD_INTERVAL_MS);
+          if (recording) _recordTimeout = setTimeout(captureFrame, RECORD_INTERVAL_MS);
+        }
+        captureFrame();
+        recordInterval = _recordTimeout;
         return { text: 'Recording started. Capturing a frame every 2 seconds.' };
       }
 
       case 'record_stop': {
         recording = false;
-        if (recordInterval) clearInterval(recordInterval);
+        if (recordInterval) clearTimeout(recordInterval);
         recordInterval = null;
         const count = recordFrames.length;
         const summary = `Recording stopped. ${count} frames captured.`;
@@ -1942,8 +1989,8 @@ async function confirmWithUser(question) {
   const rid = ++_resolveId;
   broadcast({ type: 'ask_user', question, confirm: true, options: ['Allow', 'Deny'], ...getActiveTaskMessageMeta(), resolveId: rid });
   const response = await new Promise((resolve) => {
-    _pendingResolves.set(rid, resolve);
-    setTimeout(() => { _pendingResolves.delete(rid); resolve('no'); }, 60000);
+    const timerId = setTimeout(() => { _pendingResolves.delete(rid); resolve('no'); }, 60000);
+    _pendingResolves.set(rid, { resolve, timerId });
   });
   confirmResolve = null;
   if (activeTask && activeTask.state !== TASK_STATES.STOPPING) {
