@@ -41,5 +41,6 @@ async function improvePrompt(endpoint, authToken, model, text, provider = 'zai')
 }
 
 // Export — works in both browser pages (window) and service worker (importScripts)
-const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
+// Use var (not const) so multiple files can redeclare it when loaded via importScripts
+var _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
 _globalObj.improvePrompt = improvePrompt;

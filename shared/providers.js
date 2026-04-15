@@ -202,7 +202,8 @@ function convertToolsToOpenAI(tools) {
 }
 
 // Export to globalThis so both SW (importScripts) and page (<script>) can use it
-const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
+// Use var (not const) so multiple files can redeclare it when loaded via importScripts
+var _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
 _globalObj.ZAIProviders = {
   PROVIDER_CONFIGS,
   buildProviderRequest,
