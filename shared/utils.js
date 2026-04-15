@@ -173,7 +173,8 @@ function isUrlSafe(url, devMode = false) {
 }
 
 // Export for global scope (loaded via <script> tags or importScripts)
-const _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
+// Use var (not const) so multiple files can redeclare it when loaded via importScripts
+var _globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : self);
 _globalObj.formatInterval = formatInterval;
 _globalObj.escapeHtml = escapeHtml;
 _globalObj.sanitizeHTML = sanitizeHTML;
